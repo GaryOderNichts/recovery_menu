@@ -1,0 +1,9 @@
+.vscode/
+build/
+
+*.elf
+*.bin
+*.bin.h
+*_syms.h
+
+/recovery_menu

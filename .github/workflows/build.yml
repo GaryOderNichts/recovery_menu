@@ -1,0 +1,19 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build-binary:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Build recovery
+      run: |
+        docker build -t recoverybuilder .
+        docker run --rm -v ${PWD}:/project recoverybuilder make
+    - uses: actions/upload-artifact@v2
+      with:
+       name: recovery_menu
+       path: recovery_menu
