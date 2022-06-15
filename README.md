@@ -58,3 +58,4 @@ docker run -it --rm -v ${PWD}:/project recoverybuilder make
 - [@dimok789](https://github.com/dimok789) for [mocha](https://github.com/dimok789/mocha)
 - [@hexkyz](https://github.com/hexkyz) for [hexFW](https://github.com/hexkyz/hexFW)
 - [@rw-r-r-0644](https://github.com/rw-r-r-0644) for the lolserial code
+- [decaf-emu](https://github.com/decaf-emu/decaf-emu) for a lot of IOS documentation

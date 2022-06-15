@@ -25,6 +25,7 @@
 #include "wupserver.h"
 #include "mcp_install.h"
 #include "ccr.h"
+#include "sci.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -42,6 +43,7 @@ static void option_StartWupserver(void);
 static void option_LoadNetConf(void);
 static void option_displayDRCPin(void);
 static void option_InstallWUP(void);
+static void option_EditParental(void);
 static void option_Shutdown(void);
 
 extern int ppcHeartBeatThreadId;
@@ -61,6 +63,7 @@ static struct {
     { "Load Network Configuration", option_LoadNetConf },
     { "Display DRC Pin", option_displayDRCPin },
     { "Install WUP", option_InstallWUP, },
+    { "Edit Parental Controls", option_EditParental, },
     { "Shutdown", option_Shutdown },
 };
 static const int numMainMenuOptions = sizeof(mainMenuOptions) / sizeof(mainMenuOptions[0]);
@@ -764,6 +767,120 @@ static void option_InstallWUP(void)
     waitButtonInput();
 
     IOS_Close(mcpHandle);
+}
+
+static void option_EditParental(void)
+{
+    int redraw = 1;
+    int selected = 0;
+
+    int toggled = 0;
+    int rval = 0;
+
+    uint8_t cur_flag = 0;
+    uint8_t flag = 0;
+    while (1) {
+        readSystemEventFlag(&flag);
+        if (cur_flag != flag) {
+            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
+                selected = !selected;
+                redraw = 1;
+            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
+                if (selected) {
+                    rval = SCISetParentalEnable(0);
+                    toggled = 1;
+                    redraw = 1;
+                } else {
+                    return;
+                }
+            }
+
+            cur_flag = flag;
+        }
+
+        if (redraw) {
+            gfx_clear(COLOR_BACKGROUND);
+            uint32_t index = 16 + 8 + 2 + 8;
+
+            uint8_t enabled = 0;
+            int res = SCIGetParentalEnable(&enabled);
+            if (res == 1) {
+                gfx_printf(16, index, 0, "Parental Controls: %s", enabled ? "Enabled" : "Disabled");
+            } else {
+                gfx_set_font_color(COLOR_ERROR);
+                gfx_printf(16, index, 0, "SCIGetParentalEnable failed: %d", res);
+            }
+            index += 8 + 4;
+
+            gfx_set_font_color(COLOR_PRIMARY);
+
+            char pin[5] = "";
+            res = SCIGetParentalPinCode(pin, sizeof(pin));
+            if (res == 1) {
+                gfx_printf(16, index, 0, "Parental Pin Code: %s", pin);
+            } else {
+                gfx_set_font_color(COLOR_ERROR);
+                gfx_printf(16, index, 0, "SCIGetParentalPinCode failed: %d", res);
+            }
+            index += (8 + 4) * 2;
+
+            gfx_set_font_color(COLOR_PRIMARY);
+
+            // draw options
+
+            // Back button
+            gfx_draw_rect_filled(16 - 1, index - 1,
+                gfx_get_text_width("Back") + 2, 8 + 2,
+                !selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
+
+            gfx_set_font_color(!selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
+            gfx_printf(16, index, 0, "Back");
+
+            index += 8 + 4;
+
+            // Disable button
+            gfx_draw_rect_filled(16 - 1, index - 1,
+                gfx_get_text_width("Disable") + 2, 8 + 2,
+                selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
+
+            gfx_set_font_color(selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
+            gfx_printf(16, index, 0, "Disable");
+
+            index += 8 + 4;
+
+            gfx_set_font_color(COLOR_PRIMARY);
+
+            if (toggled) {
+                index += 8 + 4;
+                
+                gfx_printf(16, index, 0, "SCISetParentalEnable(false): %d", rval);
+                index += 8 + 4;
+
+                if (rval != 1) {
+                    gfx_set_font_color(COLOR_ERROR);
+                    gfx_printf(16, index, 0, "Error!");
+                } else {
+                    gfx_set_font_color(COLOR_SUCCESS);
+                    gfx_printf(16, index, 0, "Success!");
+                }
+
+                index += 8 + 4;
+            }
+
+            // draw top bar
+            gfx_set_font_color(COLOR_PRIMARY);
+            const char* title = "Edit Parental Controls";
+            gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
+            gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+
+            // draw bottom bar
+            gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+            gfx_printf(16, SCREEN_HEIGHT - 16, 0, "EJECT: Navigate ");
+            gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - 16, 1, "POWER: Choose");
+
+            redraw = 0;
+        }
+    }
 }
 
 static void option_Shutdown(void)

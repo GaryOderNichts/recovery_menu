@@ -53,7 +53,7 @@ int _main(void* arg)
 
     map_info.paddr  = 0x05116000 - 0x05100000 + 0x13d80000;
     map_info.vaddr  = 0x05116000;
-    map_info.size   = 0x4000;
+    map_info.size   = 0x6000; // TODO how much can we actually map here?
     map_info.domain = 1; // MCP
     map_info.type   = 3;
     map_info.cached = 0xffffffff;

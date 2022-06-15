@@ -13,6 +13,11 @@ PROVIDE(usleep = 0x050564e4);
 PROVIDE(bspWrite = 0x0503d460);
 PROVIDE(bspRead = 0x0503d550);
 
+PROVIDE(UCWriteSysConfig = 0x05044a8c);
+PROVIDE(UCReadSysConfig = 0x05044d5c);
+PROVIDE(UCClose = 0x05045024);
+PROVIDE(UCOpen = 0x05045028);
+
 PROVIDE(IOS_CreateThread = 0x050567ec);
 PROVIDE(IOS_JoinThread = 0x050567f4);
 PROVIDE(IOS_CancelThread = 0x050567fc);

@@ -9,11 +9,36 @@ typedef struct {
     uint32_t paddr;
 } IOSVec_t;
 
+enum {
+    UC_DATA_TYPE_U8      = 1,
+    UC_DATA_TYPE_U16     = 2,
+    UC_DATA_TYPE_U32     = 3,
+    UC_DATA_TYPE_I32     = 4,
+    UC_DATA_TYPE_F32     = 5,
+    UC_DATA_TYPE_STRING  = 6,
+    UC_DATA_TYPE_BINARY  = 7,
+    UC_DATA_TYPE_COMPLEX = 8,
+};
+
+typedef struct __attribute__((__packed__)) {
+    char name[64];
+    uint32_t access;
+    uint32_t data_type;
+    int error;
+    uint32_t data_size;
+    void* data;
+} UCSysConfig_t;
+
 // thumb functions can't just be provided to the linker
 #define setDefaultTitleId ((int (*)(uint64_t tid)) (0x0510d984 | 1))
 
 int bspWrite(const char* entity, uint32_t instance, const char* attribute, uint32_t size, const void* buffer);
 int bspRead(const char* entity, uint32_t instance, const char* attribute, uint32_t size, void* buffer);
+
+int UCWriteSysConfig(int handle, uint32_t num, UCSysConfig_t* configs);
+int UCReadSysConfig(int handle, uint32_t num, UCSysConfig_t* configs);
+int UCClose(int handle);
+int UCOpen(void);
 
 int IOS_CreateThread(int (*fun)(void* arg), void* arg, void* stack_top, uint32_t stacksize, int priority, uint32_t flags);
 int IOS_JoinThread(int threadid, int* retval);
