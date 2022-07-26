@@ -51,11 +51,14 @@ docker build -t recoverybuilder .
 
 # build the menu
 docker run -it --rm -v ${PWD}:/project recoverybuilder make
+
+# build the menu with display controller initialization
+docker run -it --rm -v ${PWD}:/project recoverybuilder make DC_INIT=1
 ```
 
 ## Credits
 - [@Maschell](https://github.com/Maschell) for the [network configuration types](https://github.com/devkitPro/wut/commit/159f578b34401cd4365efd7b54b536154c9dc576)
 - [@dimok789](https://github.com/dimok789) for [mocha](https://github.com/dimok789/mocha)
 - [@hexkyz](https://github.com/hexkyz) for [hexFW](https://github.com/hexkyz/hexFW)
-- [@rw-r-r-0644](https://github.com/rw-r-r-0644) for the lolserial code
+- [@rw-r-r-0644](https://github.com/rw-r-r-0644) for the lolserial code and display configuration info
 - [decaf-emu](https://github.com/decaf-emu/decaf-emu) for a lot of IOS documentation

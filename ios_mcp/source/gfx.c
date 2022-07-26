@@ -21,6 +21,11 @@ static uint32_t font_color = 0xffffffff;
 
 void gfx_clear(uint32_t col)
 {
+#ifdef DC_INIT
+    // both DC configurations use XRGB instead of RGBX
+    col >>= 8;
+#endif
+
     for (uint32_t i = 0; i < TV_STRIDE * TV_HEIGHT; i++) {
         TV_FRAMEBUFFER[i] = col;
     }
@@ -32,6 +37,11 @@ void gfx_clear(uint32_t col)
 
 void gfx_draw_pixel(uint32_t x, uint32_t y, uint32_t col)
 {
+#ifdef DC_INIT
+    // both DC configurations use XRGB instead of RGBX
+    col >>= 8;
+#endif
+
     // put pixel in the drc buffer
     uint32_t i = x + y * DRC_STRIDE;
     if (i < DRC_STRIDE * DRC_HEIGHT) {

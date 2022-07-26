@@ -9,6 +9,21 @@
 #define SYSTEM_EVENT_FLAG_EJECT_BUTTON     0x20
 #define SYSTEM_EVENT_FLAG_POWER_BUTTON     0x40
 
+enum {
+    // 1280x720 XRGB framebuffer, outputs @720p
+    DC_CONFIGURATION_0,
+    // 1280x720 XRGB framebuffer, outputs @480p
+    DC_CONFIGURATION_1,
+};
+
+typedef struct DisplayController_Config {
+    uint32_t id;
+    uint32_t field_0x4;
+    int width;
+    int height;
+    void* framebuffer;
+} DisplayController_Config;
+
 uint32_t kernRead32(uint32_t address);
 
 void kernWrite32(uint32_t address, uint32_t value);
@@ -22,3 +37,7 @@ int resetPPC(void);
 int readSystemEventFlag(uint8_t* flag);
 
 int copy_file(int fsaFd, const char* src, const char* dst);
+
+int initDisplay(uint32_t configuration);
+
+int readDCConfig(DisplayController_Config* config);

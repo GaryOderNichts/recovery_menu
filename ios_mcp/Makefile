@@ -49,6 +49,10 @@ LDFLAGS := -nostartfiles -nodefaultlibs -mbig-endian -flto \
 
 LIBS	:= -lgcc
 
+ifeq ($(DC_INIT), 1)
+	CFLAGS += -DDC_INIT
+endif
+
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level
 # containing include and lib

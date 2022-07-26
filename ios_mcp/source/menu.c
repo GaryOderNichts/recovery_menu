@@ -912,6 +912,22 @@ int menuThread(void* arg)
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
     resetPPC();
 
+#ifdef DC_INIT
+    /* Note: CONFIGURATION_0 is 720p instead of 480p,
+       but doesn't shut down the GPU properly? The
+       GamePad just stays connected after calling iOS_Shutdown.
+       To be safe, let's use CONFIGURATION_1 for now */
+
+    // init display output
+    initDisplay(DC_CONFIGURATION_1);
+
+    /* Note about the display configuration struct:
+       The returned framebuffer address seems to be AV out only?
+       Writing to the hardcoded addresses in gfx.c works for HDMI though */
+    //DisplayController_Config dc_config;
+    //readDCConfig(&dc_config);
+#endif
+
     // open fsa and mount sdcard
     fsaHandle = IOS_Open("/dev/fsa", 0);
     if (fsaHandle > 0) {

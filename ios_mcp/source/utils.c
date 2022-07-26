@@ -90,3 +90,13 @@ int copy_file(int fsaFd, const char* src, const char* dst)
 
     return (res > 0) ? 0 : res;
 }
+
+int initDisplay(uint32_t configuration)
+{
+    return bspWrite("DISPLAY", 0, "DC_INIT", 4, &configuration);
+}
+
+int readDCConfig(DisplayController_Config* config)
+{
+    return bspRead("DISPLAY", 0, "DC_CONFIG", 0x14, config);
+}
