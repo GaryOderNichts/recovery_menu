@@ -44,6 +44,10 @@ The numeric values represent the following symbols: `♠ = 0, ♥ = 1, ♦ = 2, 
 Installs a valid signed WUP from the `install` folder on the root of your SD Card.  
 Don't place the WUP into any subfolders.
 
+### Edit Parental Controls
+Displays the current Parental Controls pin configuration.  
+Allows disabling Parental Controls.
+
 ## Building
 ```bash
 # build the docker container
