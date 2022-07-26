@@ -604,9 +604,14 @@ static void option_LoadNetConf(void)
 
             valuePtr = cfgBuffer + i + 1;
         } else if (cfgBuffer[i] == '\n') {
-            cfgBuffer[i] = '\0';
+            size_t end = i;
+            cfgBuffer[end] = '\0';
+            if (cfgBuffer[end - 1] == '\r') {
+                end = i - 1;
+                cfgBuffer[end] = '\0';
+            }
 
-            network_parse_config_value(&index, &cfg, keyPtr, valuePtr, (cfgBuffer + i) - valuePtr);
+            network_parse_config_value(&index, &cfg, keyPtr, valuePtr, (cfgBuffer + end) - valuePtr);
 
             keyPtr = cfgBuffer + i + 1;
             valuePtr = NULL;
