@@ -11,9 +11,19 @@ jobs:
         submodules: recursive
     - name: Build recovery
       run: |
+        # build docker container
         docker build -t recoverybuilder .
+
+        # build recovery_menu with display controller initialization
+        docker run --rm -v ${PWD}:/project recoverybuilder make DC_INIT=1
+        mv recovery_menu recovery_menu_dc_init
+
+        # build default recovery menu
+        docker run --rm -v ${PWD}:/project recoverybuilder make clean
         docker run --rm -v ${PWD}:/project recoverybuilder make
     - uses: actions/upload-artifact@v2
       with:
        name: recovery_menu
-       path: recovery_menu
+       path: |
+        recovery_menu
+        recovery_menu_dc_init

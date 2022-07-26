@@ -3,6 +3,11 @@
 # Wii U Recovery Menu
 A simple recovery menu running on the IOSU for unbricking, which can be booted using [udpih](https://github.com/GaryOderNichts/udpih). 
 
+> :information_source: Some Wii U's don't show any TV output, if it hasn't been configured properly before.  
+> If that's the case download the `recovery_menu_dc_init` file and rename it to `recovery_menu`.  
+> This build does display controller initialization and might fix the issue.  
+> Note that this build only outputs 480p and has no GamePad output!
+
 ## Options
 ### Set Coldboot Title
 Allows changing the current title the console boots to.  
