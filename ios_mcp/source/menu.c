@@ -985,7 +985,7 @@ int menuThread(void* arg)
 
             // draw top bar
             gfx_set_font_color(COLOR_PRIMARY);
-            const char* title = "Wii U Recovery Menu v0.1 by GaryOderNichts";
+            const char* title = "Wii U Recovery Menu v0.2 by GaryOderNichts";
             gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
             gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
 
