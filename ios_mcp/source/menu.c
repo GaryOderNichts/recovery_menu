@@ -912,21 +912,16 @@ int menuThread(void* arg)
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
     resetPPC();
 
-#ifdef DC_INIT
-    /* Note: CONFIGURATION_0 is 720p instead of 480p,
-       but doesn't shut down the GPU properly? The
-       GamePad just stays connected after calling iOS_Shutdown.
-       To be safe, let's use CONFIGURATION_1 for now */
+    // init display output (already initialized in recovery mode)
+    // initDisplay(DC_CONFIGURATION_1);
 
-    // init display output
-    initDisplay(DC_CONFIGURATION_1);
+    // MCP is doing something different in recovery mode to make display configuration work properly
+    // this doesn't work usually
+    DisplayController_Config dc_config;
+    readDCConfig(&dc_config);
 
-    /* Note about the display configuration struct:
-       The returned framebuffer address seems to be AV out only?
-       Writing to the hardcoded addresses in gfx.c works for HDMI though */
-    //DisplayController_Config dc_config;
-    //readDCConfig(&dc_config);
-#endif
+    printf("DC Config: %p %ux%u\n", dc_config.framebuffer, dc_config.width, dc_config.height);
+    gfx_init(dc_config.framebuffer, dc_config.width, dc_config.height);
 
     // open fsa and mount sdcard
     fsaHandle = IOS_Open("/dev/fsa", 0);

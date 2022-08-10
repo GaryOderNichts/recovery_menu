@@ -6,6 +6,8 @@
 #define SCREEN_WIDTH 854
 #define SCREEN_HEIGHT 480
 
+void gfx_init(void* fb, uint32_t w, uint32_t h);
+
 void gfx_clear(uint32_t color);
 
 void gfx_draw_pixel(uint32_t x, uint32_t y, uint32_t color);

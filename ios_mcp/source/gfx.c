@@ -6,54 +6,43 @@
 
 #include "font_bin.h"
 
-#define TV_FRAMEBUFFER ((uint32_t*) (0x14000000 + 0x3500000))
-#define TV_HEIGHT 720
-#define TV_STRIDE 1280
-
-#define DRC_FRAMEBUFFER ((uint32_t*) (0x14000000 + 0x38c0000))
-#define DRC_HEIGHT 480
-#define DRC_STRIDE 896
+static uint32_t* framebuffer;
+static uint32_t width;
+static uint32_t height;
 
 #define CHAR_SIZE_X 8
 #define CHAR_SIZE_Y 8
 
 static uint32_t font_color = 0xffffffff;
 
+void gfx_init(void* fb, uint32_t w, uint32_t h)
+{
+    framebuffer = (uint32_t*) fb;
+    width = w;
+    height = h;
+}
+
 void gfx_clear(uint32_t col)
 {
-#ifdef DC_INIT
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
 
-    for (uint32_t i = 0; i < TV_STRIDE * TV_HEIGHT; i++) {
-        TV_FRAMEBUFFER[i] = col;
-    }
-
-    for (uint32_t i = 0; i < DRC_STRIDE * DRC_HEIGHT; i++) {
-        DRC_FRAMEBUFFER[i] = col;
+    for (uint32_t i = 0; i < width * height; i++) {
+        framebuffer[i] = col;
     }
 }
 
 void gfx_draw_pixel(uint32_t x, uint32_t y, uint32_t col)
 {
-#ifdef DC_INIT
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
-
-    // put pixel in the drc buffer
-    uint32_t i = x + y * DRC_STRIDE;
-    if (i < DRC_STRIDE * DRC_HEIGHT) {
-        DRC_FRAMEBUFFER[i] = col;
-    }
 
     // scale and put pixel in the tv buffer
     for (uint32_t yy = (y * 1.5f); yy < ((y * 1.5f) + 1); yy++) {
         for (uint32_t xx = (x * 1.5f); xx < ((x * 1.5f) + 1); xx++) {
-            uint32_t i = xx + yy * TV_STRIDE;
-            if (i < TV_STRIDE * TV_HEIGHT) {
-                TV_FRAMEBUFFER[i] = col;
+            uint32_t i = xx + yy * width;
+            if (i < width * height) {
+                framebuffer[i] = col;
             }
         }
     }

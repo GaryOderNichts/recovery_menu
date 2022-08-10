@@ -1,12 +1,14 @@
 #include "imports.h"
 #include "menu.h"
 
+#include <string.h>
+
 static int threadStarted = 0;
 static uint8_t threadStack[0x1000] __attribute__((aligned(0x20)));
 
-int MCP_ioctl100_patch(void* msg)
+void* MCP_recovery_ioctl_memcpy_hook(void* dst, void* src, uint32_t size)
 {
-    printf("MCP_ioctl100_patch %p\n", msg);
+    printf("MCP_recovery_ioctl_memcpy_hook\n");
 
     // start the menu thread
     if (!threadStarted) {
@@ -18,5 +20,6 @@ int MCP_ioctl100_patch(void* msg)
         threadStarted = 1;
     }
 
-    return 29;
+    // perform the original copy
+    return memcpy(dst, src, size);
 }
