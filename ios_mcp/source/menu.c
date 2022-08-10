@@ -39,6 +39,7 @@
 static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
 static void option_DumpOtpAndSeeprom(void);
+static void option_DumpSystem(void);
 static void option_StartWupserver(void);
 static void option_LoadNetConf(void);
 static void option_displayDRCPin(void);
@@ -59,6 +60,7 @@ static struct {
     { "Set Coldboot Title", option_SetColdbootTitle },
     { "Dump Syslogs", option_DumpSyslogs },
     { "Dump OTP + SEEPROM", option_DumpOtpAndSeeprom },
+    { "Dump /vol/system", option_DumpSystem },
     { "Start wupserver", option_StartWupserver },
     { "Load Network Configuration", option_LoadNetConf },
     { "Display DRC Pin", option_displayDRCPin },
@@ -374,6 +376,115 @@ static void option_DumpOtpAndSeeprom(void)
 
     FSA_CloseFile(fsaHandle, seepromHandle);
     IOS_HeapFree(0xcaff, dataBuffer);
+}
+
+static int dumpDirectory(const char* src, const char* dst, uint32_t* index)
+{
+    int res = FSA_MakeDir(fsaHandle, dst, 0x600);
+    if ((res < 0) && !(res == -0x30016)) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, *index, 0, "Failed to create '%s': %x", dst, res);
+        return -1;
+    }
+
+    int dir_handle;
+    res = FSA_OpenDir(fsaHandle, src, &dir_handle);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, *index, 0, "Failed to open '%s': %x", src, res);
+        return -1;
+    }
+
+    // use heap to not overflow stack
+    char* src_path = IOS_HeapAlloc(0xcafe, 512);
+    if (!src_path) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, *index, 0, "Out of memory\n");
+
+        FSA_CloseDir(fsaHandle, dir_handle);
+        return -1;
+    }
+
+    char* dst_path = IOS_HeapAlloc(0xcafe, 512);
+    if (!dst_path) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, *index, 0, "Out of memory\n");
+
+        IOS_HeapFree(0xcafe, src_path);
+        FSA_CloseDir(fsaHandle, dir_handle);
+        return -1;
+    }
+
+    FSDirectoryEntry dir_entry;
+    while (FSA_ReadDir(fsaHandle, dir_handle, &dir_entry) >= 0) {
+        snprintf(src_path, 512, "%s/%s", src, dir_entry.name);
+        snprintf(dst_path, 512, "%s/%s", dst, dir_entry.name);
+
+        gfx_draw_rect_filled(0, *index, SCREEN_WIDTH, 8, COLOR_BACKGROUND);
+        gfx_printf(16, *index, 0, "Copying '%s'...", src_path);
+
+        if (dir_entry.stat.flags & DIR_ENTRY_IS_DIRECTORY) {
+            res = dumpDirectory(src_path, dst_path, index);
+            if (res < 0) {
+                *index += 8 + 4;
+                gfx_set_font_color(COLOR_ERROR);
+                gfx_printf(16, *index, 0, "Failed to copy '%s': %x", src_path, res);
+
+                IOS_HeapFree(0xcafe, src_path);
+                IOS_HeapFree(0xcafe, dst_path);
+
+                FSA_CloseDir(fsaHandle, dir_handle);
+                return -1;
+            }
+        } else {
+            res = copy_file(fsaHandle, src_path, dst_path);
+            if (res < 0) {
+                *index += 8 + 4;
+                gfx_set_font_color(COLOR_ERROR);
+                gfx_printf(16, *index, 0, "Failed to copy '%s': %x", src_path, res);
+
+                IOS_HeapFree(0xcafe, src_path);
+                IOS_HeapFree(0xcafe, dst_path);
+
+                FSA_CloseDir(fsaHandle, dir_handle);
+                return -1;
+            }
+        }
+    }
+
+    IOS_HeapFree(0xcafe, src_path);
+    IOS_HeapFree(0xcafe, dst_path);
+
+    FSA_CloseDir(fsaHandle, dir_handle);
+    return 0;
+}
+
+static void option_DumpSystem(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+
+    // draw top bar
+    gfx_set_font_color(COLOR_PRIMARY);
+    const char* title = "Dumping /vol/system...";
+    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
+    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+
+    uint32_t index = 16 + 8 + 2 + 8;
+    gfx_printf(16, index, 0, "Dumping system directory...");
+    index += 8 + 4;
+
+    int res = dumpDirectory("/vol/system", "/vol/storage_recovsd/system", &index);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to dump directory %x\n", res);
+        waitButtonInput();
+        return;
+    }
+
+    index += 8 + 4;
+    gfx_set_font_color(COLOR_SUCCESS);
+    gfx_printf(16, index, 0, "Done!");
+    waitButtonInput();
 }
 
 static void option_StartWupserver(void)
@@ -980,7 +1091,7 @@ int menuThread(void* arg)
 
             // draw top bar
             gfx_set_font_color(COLOR_PRIMARY);
-            const char* title = "Wii U Recovery Menu v0.2 by GaryOderNichts";
+            const char* title = "Wii U Recovery Menu (MCP Recovery Edition) by GaryOderNichts";
             gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
             gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
 
