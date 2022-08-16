@@ -6,18 +6,19 @@
 
 #include "font_bin.h"
 
-#define TV_FRAMEBUFFER ((uint32_t*) (0x14000000 + 0x3500000))
+static uint32_t *const TV_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x3500000);
 #define TV_HEIGHT 720
 #define TV_STRIDE 1280
 
-#define DRC_FRAMEBUFFER ((uint32_t*) (0x14000000 + 0x38c0000))
+static uint32_t *const DRC_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x38c0000);
 #define DRC_HEIGHT 480
 #define DRC_STRIDE 896
 
 #define CHAR_SIZE_X 8
 #define CHAR_SIZE_Y 8
 
-static uint32_t font_color = 0xffffffff;
+// Default font color is white.
+static uint32_t font_color = 0xFFFFFFFF;
 
 void gfx_clear(uint32_t col)
 {
@@ -61,10 +62,26 @@ void gfx_draw_pixel(uint32_t x, uint32_t y, uint32_t col)
 
 void gfx_draw_rect_filled(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t col)
 {
-    for (uint32_t yy = y; yy < y + h; yy++) {
-        for (uint32_t xx = x; xx < x + w; xx++) {
-            gfx_draw_pixel(xx, yy, col);
+    // DRC fill: normal scale
+    uint32_t *p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
+    uint32_t stride_diff = DRC_STRIDE - w;
+
+    for (uint32_t hcnt = h; hcnt > 0; hcnt--) {
+        for (uint32_t wcnt = w; wcnt > 0; wcnt--) {
+            *p++ = col;
         }
+        p += stride_diff;
+    }
+
+    // TV fill: 1.5x scale
+    p = TV_FRAMEBUFFER + ((uint32_t)(y * 1.5) * TV_STRIDE) + (uint32_t)(x * 1.5);
+    stride_diff = TV_STRIDE - (w * 1.5);
+
+    for (uint32_t hcnt = h * 1.5; hcnt > 0; hcnt--) {
+        for (uint32_t wcnt = w * 1.5; wcnt > 0; wcnt--) {
+            *p++ = col;
+        }
+        p += stride_diff;
     }
 }
 
@@ -96,16 +113,39 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
 
     c -= 32;
 
-    const uint8_t* charData = &font_bin[(CHAR_SIZE_X * CHAR_SIZE_Y * c) / 8];
+    // DRC blit: normal scale
+    const uint8_t *charData = &font_bin[(CHAR_SIZE_X * CHAR_SIZE_Y * c) / 8];
+    uint32_t *p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
+    unsigned int stride_diff = DRC_STRIDE - CHAR_SIZE_X;
 
-    for (uint32_t i = 0; i < CHAR_SIZE_Y; i++) {
-        uint8_t v = *(charData++);
-
-        for (uint32_t j = 0; j < CHAR_SIZE_X; j++) {
-            if(v & (1 << j)) {
-                gfx_draw_pixel(x + j, y + i, font_color);
+    for (uint32_t hcnt = CHAR_SIZE_Y; hcnt > 0; hcnt--) {
+        uint8_t v = *charData++;
+        for (uint32_t wcnt = CHAR_SIZE_X; wcnt > 0; wcnt--, v >>= 1) {
+            if (v & 1) {
+                *p = font_color;
             }
+            p++;
         }
+        p += stride_diff;
+    }
+
+    // TV blit: 1.5x scale
+    // TODO: Add a 12x24 font instead of this awful scaling method.
+    charData = &font_bin[(CHAR_SIZE_X * CHAR_SIZE_Y * c) / 8];
+    p = TV_FRAMEBUFFER + ((uint32_t)(y * 1.5) * TV_STRIDE) + (uint32_t)(x * 1.5);
+    stride_diff = TV_STRIDE - (CHAR_SIZE_X * 1.5);
+
+    for (uint32_t hcnt = CHAR_SIZE_Y * 1.5; hcnt > 0; hcnt--) {
+        uint8_t v = *charData;
+        for (uint32_t wcnt = CHAR_SIZE_X * 1.5; wcnt > 0; wcnt--) {
+            if (v & 1) {
+                *p = font_color;
+            }
+            if (!(wcnt & 1)) v >>= 1;   // HACK: Bad scaling method.
+            p++;
+        }
+        if (!(hcnt & 1)) charData++;   // HACK: Bad scaling method.
+        p += stride_diff;
     }
 }
 
