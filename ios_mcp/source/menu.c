@@ -68,6 +68,24 @@ static struct {
 };
 static const int numMainMenuOptions = sizeof(mainMenuOptions) / sizeof(mainMenuOptions[0]);
 
+static void drawTopBar(const char *title)
+{
+    // draw top bar
+    gfx_set_font_color(COLOR_PRIMARY);
+    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
+    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+}
+
+static void drawBars(const char *title)
+{
+    drawTopBar(title);
+
+    // draw bottom bar
+    gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+    gfx_printf(16, SCREEN_HEIGHT - 16, 0, "EJECT: Navigate");
+    gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - 16, 1, "POWER: Choose");
+}
+
 static void waitButtonInput(void)
 {
     gfx_set_font_color(COLOR_PRIMARY);
@@ -179,17 +197,7 @@ static void option_SetColdbootTitle(void)
                 }
             }
 
-            // draw top bar
-            gfx_set_font_color(COLOR_PRIMARY);
-            const char* title = "Set Coldboot Title";
-            gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-            gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-
-            // draw bottom bar
-            gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-            gfx_printf(16, SCREEN_HEIGHT - 16, 0, "EJECT: Navigate ");
-            gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - 16, 1, "POWER: Choose");
-
+            drawBars("Set Coldboot Title");
             redraw = 0;
         }
     }
@@ -199,11 +207,7 @@ static void option_DumpSyslogs(void)
 {
     gfx_clear(COLOR_BACKGROUND);
 
-    // draw top bar
-    gfx_set_font_color(COLOR_PRIMARY);
-    const char* title = "Dumping Syslogs...";
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+    drawTopBar("Dumping Syslogs...");
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Creating 'logs' directory...");
@@ -266,12 +270,7 @@ static void option_DumpSyslogs(void)
 static void option_DumpOtpAndSeeprom(void)
 {
     gfx_clear(COLOR_BACKGROUND);
-
-    // draw top bar
-    gfx_set_font_color(COLOR_PRIMARY);
-    const char* title = "Dumping OTP + SEEPROM...";
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+    drawTopBar("Dumping OTP + SEEPROM...");
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Creating otp.bin...");
@@ -379,12 +378,7 @@ static void option_DumpOtpAndSeeprom(void)
 static void option_StartWupserver(void)
 {
     gfx_clear(COLOR_BACKGROUND);
-
-    // draw top bar
-    gfx_set_font_color(COLOR_PRIMARY);
-    const char* title = "Running wupserver...";
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+    drawTopBar("Running wupserver...");
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Initializing netconf...");
@@ -527,12 +521,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
 static void option_LoadNetConf(void)
 {
     gfx_clear(COLOR_BACKGROUND);
-
-    // draw top bar
-    gfx_set_font_color(COLOR_PRIMARY);
-    const char* title = "Loading network configuration...";
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+    drawTopBar("Loading network configuration...");
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Initializing netconf...");
@@ -650,12 +639,7 @@ static void option_LoadNetConf(void)
 static void option_displayDRCPin(void)
 {
     gfx_clear(COLOR_BACKGROUND);
-
-    // draw top bar
-    gfx_set_font_color(COLOR_PRIMARY);
-    const char* title = "Display DRC Pin";
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+    drawTopBar("Display DRC Pin");
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Reading DRH mac address...");
@@ -680,7 +664,7 @@ static void option_displayDRCPin(void)
         return;
     }
 
-    static const char* symbol_names[] = {
+    static const char symbol_names[][8] = {
         "spade",
         "heart",
         "diamond",
@@ -700,12 +684,7 @@ static void option_displayDRCPin(void)
 static void option_InstallWUP(void)
 {
     gfx_clear(COLOR_BACKGROUND);
-
-    // draw top bar
-    gfx_set_font_color(COLOR_PRIMARY);
-    const char* title = "Installing WUP";
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-    gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+    drawTopBar("Installing WUP");
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
@@ -872,17 +851,7 @@ static void option_EditParental(void)
                 index += 8 + 4;
             }
 
-            // draw top bar
-            gfx_set_font_color(COLOR_PRIMARY);
-            const char* title = "Edit Parental Controls";
-            gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-            gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-
-            // draw bottom bar
-            gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-            gfx_printf(16, SCREEN_HEIGHT - 16, 0, "EJECT: Navigate ");
-            gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - 16, 1, "POWER: Choose");
-
+            drawBars("Edit Parental Controls");
             redraw = 0;
         }
     }
@@ -982,17 +951,7 @@ int menuThread(void* arg)
             }
 
             gfx_set_font_color(COLOR_PRIMARY);
-
-            // draw top bar
-            gfx_set_font_color(COLOR_PRIMARY);
-            const char* title = "Wii U Recovery Menu v0.2 by GaryOderNichts";
-            gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
-            gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-
-            // draw bottom bar
-            gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-            gfx_printf(16, SCREEN_HEIGHT - 16, 0, "EJECT: Navigate ");
-            gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - 16, 1, "POWER: Choose");
+            drawBars("Wii U Recovery Menu v0.2 by GaryOderNichts");
 
             redraw = 0;
         }
