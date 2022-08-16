@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+// Terminus fonts (8x16 for DRC, 12x24 for TV)
 #include "font_bin.h"
 
 static uint32_t *const TV_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x3500000);
@@ -14,8 +15,8 @@ static uint32_t *const DRC_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x38c0000);
 #define DRC_HEIGHT 480
 #define DRC_STRIDE 896
 
-#define CHAR_SIZE_X 8
-#define CHAR_SIZE_Y 8
+#define CHAR_SIZE_TV_X 12
+#define CHAR_SIZE_TV_Y 24
 
 // Default font color is white.
 static uint32_t font_color = 0xFFFFFFFF;
@@ -101,27 +102,26 @@ void gfx_set_font_color(uint32_t col)
 uint32_t gfx_get_text_width(const char* string)
 {
     uint32_t i;
-    for (i = 0; string[i]; i++);
-    return i * CHAR_SIZE_X;
+    for (i = 0; *string; i++, string++);
+    return i * CHAR_SIZE_DRC_X;
 }
 
 static void gfx_draw_char(uint32_t x, uint32_t y, char c)
 {
-    if(c < 32) {
+    // Skip anything outside of [32,128), since the font doesn't have it.
+    if (c < 32 || c >= 128)
         return;
-    }
-
     c -= 32;
 
-    // DRC blit: normal scale
-    const uint8_t *charData = &font_bin[(CHAR_SIZE_X * CHAR_SIZE_Y * c) / 8];
+    // DRC blit: Terminus 8x16 bold
+    const uint8_t *charDRC = ter_u16b[(unsigned char)c];
     uint32_t *p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
-    unsigned int stride_diff = DRC_STRIDE - CHAR_SIZE_X;
+    unsigned int stride_diff = DRC_STRIDE - CHAR_SIZE_DRC_X;
 
-    for (uint32_t hcnt = CHAR_SIZE_Y; hcnt > 0; hcnt--) {
-        uint8_t v = *charData++;
-        for (uint32_t wcnt = CHAR_SIZE_X; wcnt > 0; wcnt--, v >>= 1) {
-            if (v & 1) {
+    for (uint32_t hcnt = CHAR_SIZE_DRC_Y; hcnt > 0; hcnt--) {
+        uint8_t v = *charDRC++;
+        for (uint32_t wcnt = CHAR_SIZE_DRC_X; wcnt > 0; wcnt--, v <<= 1) {
+            if (v & 0x80) {
                 *p = font_color;
             }
             p++;
@@ -129,22 +129,19 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
         p += stride_diff;
     }
 
-    // TV blit: 1.5x scale
-    // TODO: Add a 12x24 font instead of this awful scaling method.
-    charData = &font_bin[(CHAR_SIZE_X * CHAR_SIZE_Y * c) / 8];
+    // TV blit: Terminus 12x24 bold
+    const uint16_t *charTV = ter_u24b[(unsigned char)c];
     p = TV_FRAMEBUFFER + ((uint32_t)(y * 1.5) * TV_STRIDE) + (uint32_t)(x * 1.5);
-    stride_diff = TV_STRIDE - (CHAR_SIZE_X * 1.5);
+    stride_diff = TV_STRIDE - CHAR_SIZE_TV_X;
 
-    for (uint32_t hcnt = CHAR_SIZE_Y * 1.5; hcnt > 0; hcnt--) {
-        uint8_t v = *charData;
-        for (uint32_t wcnt = CHAR_SIZE_X * 1.5; wcnt > 0; wcnt--) {
-            if (v & 1) {
+    for (uint32_t hcnt = CHAR_SIZE_TV_Y; hcnt > 0; hcnt--) {
+        uint16_t v = *charTV++;
+        for (uint32_t wcnt = CHAR_SIZE_TV_X; wcnt > 0; wcnt--, v <<= 1) {
+            if (v & 0x800) {
                 *p = font_color;
             }
-            if (!(wcnt & 1)) v >>= 1;   // HACK: Bad scaling method.
             p++;
         }
-        if (!(hcnt & 1)) charData++;   // HACK: Bad scaling method.
         p += stride_diff;
     }
 }
@@ -155,9 +152,10 @@ void gfx_print(uint32_t x, uint32_t y, int alignRight, const char* string)
         x -= gfx_get_text_width(string);
     }
 
-    for (uint32_t i = 0; string[i]; i++) {
-        if(string[i] >= 32 && string[i] < 128) {
-            gfx_draw_char(x + i * CHAR_SIZE_X, y, string[i]);
+    for (; *string != '\0'; string++, x += CHAR_SIZE_DRC_X) {
+        char chr = *string;
+        if ((unsigned char)chr >= 32 && (unsigned char)chr <= 128) {
+            gfx_draw_char(x, y, chr);
         }
     }
 }

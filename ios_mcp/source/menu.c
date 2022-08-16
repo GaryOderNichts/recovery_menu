@@ -82,15 +82,15 @@ static void drawBars(const char *title)
 
     // draw bottom bar
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-    gfx_printf(16, SCREEN_HEIGHT - 16, 0, "EJECT: Navigate");
-    gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - 16, 1, "POWER: Choose");
+    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
+    gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
 }
 
 static void waitButtonInput(void)
 {
     gfx_set_font_color(COLOR_PRIMARY);
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-    gfx_printf(16, SCREEN_HEIGHT - 16, 0, "Press EJECT or POWER to proceed");
+    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "Press EJECT or POWER to proceed...");
 
     uint8_t cur_flag = 0;
     uint8_t flag = 0;
@@ -109,7 +109,7 @@ static void waitButtonInput(void)
 
 static void option_SetColdbootTitle(void)
 {
-    static const char* coldbootTitleOptions[] = {
+    static const char *const coldbootTitleOptions[] = {
         "Back",
         "Wii U Menu (JPN) - 00050010-10040000",
         "Wii U Menu (USA) - 00050010-10040100",
@@ -165,29 +165,29 @@ static void option_SetColdbootTitle(void)
 
             // draw current titles
             gfx_printf(16, index, 0, "Current coldboot title:    0x%016llx", currentColdbootTitle);
-            index += 8 + 4;
+            index += CHAR_SIZE_DRC_Y + 4;
 
             gfx_printf(16, index, 0, "Current coldboot os:       0x%016llx", currentColdbootOS);
-            index += (8 + 4) * 2;
+            index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
             // draw options
             for (int i = 0; i < 4; i++) {
                 gfx_draw_rect_filled(16 - 1, index - 1,
-                    gfx_get_text_width(coldbootTitleOptions[i]) + 2, 8 + 2,
+                    gfx_get_text_width(coldbootTitleOptions[i]) + 2, CHAR_SIZE_DRC_Y + 2,
                     selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
 
                 gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
                 gfx_printf(16, index, 0, coldbootTitleOptions[i]);
 
-                index += 8 + 4;
+                index += CHAR_SIZE_DRC_Y + 4;
             }
 
             gfx_set_font_color(COLOR_PRIMARY);
 
             if (newtid) {
-                index += (8 + 4) * 2;
+                index += (CHAR_SIZE_DRC_Y + 4) * 2;
                 gfx_printf(16, index, 0, "Setting coldboot title id to 0x%016llx, rval %d", newtid, rval);
-                index += 8 + 4;
+                index += CHAR_SIZE_DRC_Y + 4;
                 if (rval < 0) {
                     gfx_set_font_color(COLOR_ERROR);
                     gfx_printf(16, index, 0, "Error! Make sure title is installed correctly.");
@@ -211,7 +211,7 @@ static void option_DumpSyslogs(void)
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Creating 'logs' directory...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int res = FSA_MakeDir(fsaHandle, "/vol/storage_recovsd/logs", 0x600);
     if ((res < 0) && !(res == -0x30016)) {
@@ -222,7 +222,7 @@ static void option_DumpSyslogs(void)
     }
 
     gfx_printf(16, index, 0, "Opening system 'logs' directory...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int dir_handle;
     res = FSA_OpenDir(fsaHandle, "/vol/system/logs", &dir_handle);
@@ -249,7 +249,7 @@ static void option_DumpSyslogs(void)
 
         res = copy_file(fsaHandle, src_path, dst_path);
         if (res < 0) {
-            index += 8 + 4;
+            index += CHAR_SIZE_DRC_Y + 4;
             gfx_set_font_color(COLOR_ERROR);
             gfx_printf(16, index, 0, "Failed to copy %s: %x", dir_entry.name, res);
             waitButtonInput();
@@ -259,7 +259,7 @@ static void option_DumpSyslogs(void)
         }
     }
 
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
     gfx_set_font_color(COLOR_SUCCESS);
     gfx_printf(16, index, 0, "Done!");
     waitButtonInput();
@@ -274,7 +274,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Creating otp.bin...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     void* dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
     if (!dataBuffer) {
@@ -296,7 +296,7 @@ static void option_DumpOtpAndSeeprom(void)
     }
 
     gfx_printf(16, index, 0, "Reading OTP...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     res = readOTP(dataBuffer, 0x400);
     if (res < 0) {
@@ -310,7 +310,7 @@ static void option_DumpOtpAndSeeprom(void)
     }
 
     gfx_printf(16, index, 0, "Writing otp.bin...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x400, otpHandle, 0);
     if (res != 0x400) {
@@ -326,7 +326,7 @@ static void option_DumpOtpAndSeeprom(void)
     FSA_CloseFile(fsaHandle, otpHandle);
 
     gfx_printf(16, index, 0, "Creating seeprom.bin...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int seepromHandle;
     res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/seeprom.bin", "w", &seepromHandle);
@@ -340,7 +340,7 @@ static void option_DumpOtpAndSeeprom(void)
     }
 
     gfx_printf(16, index, 0, "Reading SEEPROM...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     res = EEPROM_Read(0, 0x100, (uint16_t*) dataBuffer);
     if (res < 0) {
@@ -354,7 +354,7 @@ static void option_DumpOtpAndSeeprom(void)
     }
 
     gfx_printf(16, index, 0, "Writing seeprom.bin...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x200, seepromHandle, 0);
     if (res != 0x200) {
@@ -382,7 +382,7 @@ static void option_StartWupserver(void)
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Initializing netconf...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int res = netconf_init();
     if (res <= 0) {
@@ -411,7 +411,7 @@ static void option_StartWupserver(void)
         gfx_printf(16, index, 0, "Waiting for network connection... %ds", 4 - i);
     }
 
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     if (interface == 0xff) {
         gfx_set_font_color(COLOR_ERROR);
@@ -421,7 +421,7 @@ static void option_StartWupserver(void)
     }
 
     gfx_printf(16, index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     uint8_t ip_address[4];
     res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
@@ -433,7 +433,7 @@ static void option_StartWupserver(void)
     }
 
     gfx_printf(16, index, 0, "IP address: %d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     res = socketInit();
     if (res <= 0) {
@@ -447,13 +447,13 @@ static void option_StartWupserver(void)
 
     gfx_set_font_color(COLOR_SUCCESS);
     gfx_printf(16, index, 0, "Wupserver running. Press EJECT or POWER to stop.");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     waitButtonInput();
 
     gfx_set_font_color(COLOR_PRIMARY);
     gfx_printf(16, index, 0, "Stopping wupserver...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     wupserver_deinit();
 }
@@ -525,7 +525,7 @@ static void option_LoadNetConf(void)
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Initializing netconf...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int res = netconf_init();
     if (res <= 0) {
@@ -536,7 +536,7 @@ static void option_LoadNetConf(void)
     }
 
     gfx_printf(16, index, 0, "Reading network.cfg...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int cfgHandle;
     res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/network.cfg", "r", &cfgHandle);
@@ -613,7 +613,7 @@ static void option_LoadNetConf(void)
     }
 
     gfx_printf(16, index, 0, "Applying configuration...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     res = netconf_set_running(&cfg);
     if (res < 0) {
@@ -628,7 +628,7 @@ static void option_LoadNetConf(void)
 
     gfx_set_font_color(COLOR_SUCCESS);
     gfx_printf(16, index, 0, "Done!");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     waitButtonInput();
 
@@ -643,7 +643,7 @@ static void option_displayDRCPin(void)
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Reading DRH mac address...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int ccrHandle = IOS_Open("/dev/ccr_cdc", 0);
     if (ccrHandle < 0) {
@@ -688,7 +688,7 @@ static void option_InstallWUP(void)
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_printf(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int mcpHandle = IOS_Open("/dev/mcp", 0);
     if (mcpHandle < 0) {
@@ -699,7 +699,7 @@ static void option_InstallWUP(void)
     }
 
     gfx_printf(16, index, 0, "Querying install info...");
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     MCPInstallInfo info;
     int res = MCP_InstallGetInfo(mcpHandle, "/vol/storage_recovsd/install", &info);
@@ -713,7 +713,7 @@ static void option_InstallWUP(void)
     }
 
     gfx_printf(16, index, 0, "Installing title: 0x%016llx...", info.titleId);
-    index += 8 + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
 
     // only install to NAND
     res = MCP_InstallSetTargetDevice(mcpHandle, 0);
@@ -794,7 +794,7 @@ static void option_EditParental(void)
                 gfx_set_font_color(COLOR_ERROR);
                 gfx_printf(16, index, 0, "SCIGetParentalEnable failed: %d", res);
             }
-            index += 8 + 4;
+            index += CHAR_SIZE_DRC_Y + 4;
 
             gfx_set_font_color(COLOR_PRIMARY);
 
@@ -820,7 +820,7 @@ static void option_EditParental(void)
             gfx_set_font_color(!selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
             gfx_printf(16, index, 0, "Back");
 
-            index += 8 + 4;
+            index += CHAR_SIZE_DRC_Y + 4;
 
             // Disable button
             gfx_draw_rect_filled(16 - 1, index - 1,
@@ -830,15 +830,15 @@ static void option_EditParental(void)
             gfx_set_font_color(selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
             gfx_printf(16, index, 0, "Disable");
 
-            index += 8 + 4;
+            index += CHAR_SIZE_DRC_Y + 4;
 
             gfx_set_font_color(COLOR_PRIMARY);
 
             if (toggled) {
-                index += 8 + 4;
+                index += CHAR_SIZE_DRC_Y + 4;
                 
                 gfx_printf(16, index, 0, "SCISetParentalEnable(false): %d", rval);
-                index += 8 + 4;
+                index += CHAR_SIZE_DRC_Y + 4;
 
                 if (rval != 1) {
                     gfx_set_font_color(COLOR_ERROR);
@@ -848,7 +848,7 @@ static void option_EditParental(void)
                     gfx_printf(16, index, 0, "Success!");
                 }
 
-                index += 8 + 4;
+                index += CHAR_SIZE_DRC_Y + 4;
             }
 
             drawBars("Edit Parental Controls");
@@ -938,21 +938,20 @@ int menuThread(void* arg)
             gfx_clear(COLOR_BACKGROUND);
 
             // draw options
-            uint32_t index = 16 + 8 + 2 + 8;
+            uint32_t index = 16+8+2+8;
             for (int i = 0; i < numMainMenuOptions; i++) {
                 gfx_draw_rect_filled(16 - 1, index - 1,
-                    gfx_get_text_width(mainMenuOptions[i].name) + 2, 8 + 2,
+                    gfx_get_text_width(mainMenuOptions[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
                     selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
 
                 gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
                 gfx_printf(16, index, 0, mainMenuOptions[i].name);
 
-                index += 8 + 4;
+                index += CHAR_SIZE_DRC_Y + 4;
             }
 
             gfx_set_font_color(COLOR_PRIMARY);
             drawBars("Wii U Recovery Menu v0.2 by GaryOderNichts");
-
             redraw = 0;
         }
     }
