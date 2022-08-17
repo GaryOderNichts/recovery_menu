@@ -137,15 +137,16 @@ static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t 
         if (redraw) {
             gfx_clear(COLOR_BACKGROUND);
 
+            int index = y;
             for (int i = 0; i < count; i++) {
-                gfx_draw_rect_filled(x - 1, y - 1,
+                gfx_draw_rect_filled(x - 1, index - 1,
                     gfx_get_text_width(menu[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
                     selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
 
                 gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                gfx_printf(x, y, 0, menu[i].name);
+                gfx_printf(x, index, 0, menu[i].name);
 
-                y += CHAR_SIZE_DRC_Y + 4;
+                index += CHAR_SIZE_DRC_Y + 4;
             }
 
             gfx_set_font_color(COLOR_PRIMARY);
