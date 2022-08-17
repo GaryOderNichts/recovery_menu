@@ -80,9 +80,12 @@ static void drawBars(const char *title)
 {
     drawTopBar(title);
 
+extern int lzo_res;
+extern unsigned int lzo_data_len;
+
     // draw bottom bar
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
+    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate %d %u", lzo_res, lzo_data_len);
     gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
 }
 
@@ -900,6 +903,15 @@ int menuThread(void* arg)
     // open fsa and mount sdcard
     fsaHandle = IOS_Open("/dev/fsa", 0);
     if (fsaHandle > 0) {
+        // initialize the font
+        if (gfx_init_font() != 0) {
+            // failed to initialize font
+            // can't do anything without a font, so shut down
+            FSA_FlushVolume(fsaHandle, "/vol/storage_mlc01");
+            IOS_Close(fsaHandle);
+            IOS_Shutdown(0);
+        }
+
         int res = FSA_Mount(fsaHandle, "/dev/sdcard01", "/vol/storage_recovsd", 2, NULL, 0);
         if (res < 0) {
             printf("Failed to mount SD: %x\n", res);
