@@ -54,22 +54,37 @@ extern uint64_t currentColdbootTitle;
 
 static int fsaHandle = -1;
 
-static struct {
+/**
+ * Number of elements in an array.
+ *
+ * Includes a static check for pointers to make sure
+ * a dynamically-allocated array wasn't specified.
+ * Reference: http://stackoverflow.com/questions/8018843/macro-definition-array-size
+ */
+#define ARRAY_SIZE(x) \
+	(((sizeof(x) / sizeof(x[0]))) / \
+		(size_t)(!(sizeof(x) % sizeof(x[0]))))
+
+typedef struct Menu {
     const char* name;
-    void (*callback)(void);
-} mainMenuOptions[] = {
-    { "Set Coldboot Title", option_SetColdbootTitle },
-    { "Dump Syslogs", option_DumpSyslogs },
-    { "Dump OTP + SEEPROM", option_DumpOtpAndSeeprom },
-    { "Start wupserver", option_StartWupserver },
-    { "Load Network Configuration", option_LoadNetConf },
-    { "Display DRC Pin", option_displayDRCPin },
-    { "Install WUP", option_InstallWUP, },
-    { "Edit Parental Controls", option_EditParental, },
-    { "System Information", option_SystemInformation, },
-    { "Shutdown", option_Shutdown },
+    union {
+        void (*callback)(void);
+        uint64_t tid;
+    };
+} Menu;
+
+static const Menu mainMenuOptions[] = {
+    { "Set Coldboot Title", { option_SetColdbootTitle } },
+    { "Dump Syslogs", { option_DumpSyslogs } },
+    { "Dump OTP + SEEPROM", { option_DumpOtpAndSeeprom } },
+    { "Start wupserver", { option_StartWupserver } },
+    { "Load Network Configuration", { option_LoadNetConf } },
+    { "Display DRC Pin", { option_displayDRCPin } },
+    { "Install WUP", { option_InstallWUP } },
+    { "Edit Parental Controls", { option_EditParental } },
+    { "System Information", { option_SystemInformation } },
+    { "Shutdown", { option_Shutdown } },
 };
-static const int numMainMenuOptions = sizeof(mainMenuOptions) / sizeof(mainMenuOptions[0]);
 
 static void drawTopBar(const char* title)
 {
@@ -87,6 +102,57 @@ static void drawBars(const char* title)
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
     gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
     gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
+}
+
+/**
+ * Draw a menu and wait for the user to select an option.
+ * @param title Menu title
+ * @param menu Array of menu entries
+ * @param count Number of menu entries
+ * @param x
+ * @param y
+ * @return Selected menu entry index.
+ */
+static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t x, uint32_t y)
+{
+    int redraw = 1;
+    int selected = 0;
+
+    uint8_t cur_flag = 0;
+    uint8_t flag = 0;
+    while (1) {
+        readSystemEventFlag(&flag);
+        if (cur_flag != flag) {
+            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
+                selected++;
+                if (selected == count)
+                    selected = 0;
+                redraw = 1;
+            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
+                return selected;
+            }
+            cur_flag = flag;
+        }
+
+        if (redraw) {
+            gfx_clear(COLOR_BACKGROUND);
+
+            for (int i = 0; i < count; i++) {
+                gfx_draw_rect_filled(x - 1, y - 1,
+                    gfx_get_text_width(menu[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
+                    selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
+
+                gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
+                gfx_printf(x, y, 0, menu[i].name);
+
+                y += CHAR_SIZE_DRC_Y + 4;
+            }
+
+            gfx_set_font_color(COLOR_PRIMARY);
+            drawBars(title);
+            redraw = 0;
+        }
+    }
 }
 
 static void waitButtonInput(void)
@@ -1149,51 +1215,11 @@ int menuThread(void* arg)
         printf("Failed to open FSA: %x\n", fsaHandle);
     }
 
-    int redraw = 1;
-    int selected = 0;
-
-    uint8_t cur_flag = 0;
-    uint8_t flag = 0;
     while (1) {
-        readSystemEventFlag(&flag);
-        if (cur_flag != flag) {
-            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
-                selected++;
-
-                if (selected == numMainMenuOptions) {
-                    selected = 0;
-                }
-
-                redraw = 1;
-            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
-                if (mainMenuOptions[selected].callback) {
-                    mainMenuOptions[selected].callback();
-                    redraw = 1;
-                }
-            }
-
-            cur_flag = flag;
-        }
-
-        if (redraw) {
-            gfx_clear(COLOR_BACKGROUND);
-
-            // draw options
-            uint32_t index = 16+8+2+8;
-            for (int i = 0; i < numMainMenuOptions; i++) {
-                gfx_draw_rect_filled(16 - 1, index - 1,
-                    gfx_get_text_width(mainMenuOptions[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
-                    selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-                gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                gfx_printf(16, index, 0, mainMenuOptions[i].name);
-
-                index += CHAR_SIZE_DRC_Y + 4;
-            }
-
-            gfx_set_font_color(COLOR_PRIMARY);
-            drawBars("Wii U Recovery Menu v0.2 by GaryOderNichts");
-            redraw = 0;
+        int selected = drawMenu("Wii U Recovery Menu v0.2 by GaryOderNichts",
+            mainMenuOptions, ARRAY_SIZE(mainMenuOptions), 16, 16+8+2+8);
+        if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {
+            mainMenuOptions[selected].callback();
         }
     }
 
