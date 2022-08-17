@@ -109,14 +109,45 @@ static void waitButtonInput(void)
     }
 }
 
+static int isSystemUsingDebugKeyset(void)
+{
+    int ret = 0;
+
+    // Check OTP to see if this system is using the Debug keyset.
+    uint8_t *const dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
+    if (!dataBuffer)
+        return ret;
+
+    int res = readOTP(dataBuffer, 0x400);
+    if (res >= 0) {
+        ret = ((dataBuffer[0x080] & 0x18) == 0x08);
+    }
+
+    IOS_HeapFree(0xcaff, dataBuffer);
+    return ret;
+}
+
 static void option_SetColdbootTitle(void)
 {
-    static const char *const coldbootTitleOptions[] = {
-        "Back",
-        "Wii U Menu (JPN) - 00050010-10040000",
-        "Wii U Menu (USA) - 00050010-10040100",
-        "Wii U Menu (EUR) - 00050010-10040200",
+    typedef struct _coldbootTitleOptions_t {
+        const char *desc;
+        uint64_t tid;
+    } coldbootTitleOptions_t;
+
+    static const coldbootTitleOptions_t coldbootTitleOptions[] = {
+        {"Back", 0},
+        {"Wii U Menu (JPN)", 0x0005001010040000},
+        {"Wii U Menu (USA)", 0x0005001010040100},
+        {"Wii U Menu (EUR)", 0x0005001010040200},
+
+        // non-retail systems only
+        {"System Config Tool", 0x000500101F700500},
+        {"DEVMENU (pre-2.09)", 0x000500101F7001FF},
+        {"Kiosk Menu        ", 0x000500101FA81000},
     };
+
+    // Only print the non-retail options if the keyset is debug.
+    const int option_count = (isSystemUsingDebugKeyset() ? 7 : 4);
 
     int rval;
     uint64_t newtid = 0;
@@ -132,25 +163,15 @@ static void option_SetColdbootTitle(void)
             if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
                 selected++;
 
-                if (selected == 4) {
+                if (selected == option_count) {
                     selected = 0;
                 }
 
                 redraw = 1;
             } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
-                switch (selected) {
-                case 0:
+                newtid = coldbootTitleOptions[selected].tid;
+                if (newtid == 0)
                     return;
-                case 1:
-                    newtid = 0x0005001010040000llu;
-                    break;
-                case 2:
-                    newtid = 0x0005001010040100llu;
-                    break;
-                case 3:
-                    newtid = 0x0005001010040200llu;
-                    break;
-                }
 
                 rval = setDefaultTitleId(newtid);
                 redraw = 1;
@@ -173,13 +194,24 @@ static void option_SetColdbootTitle(void)
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
             // draw options
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < option_count; i++) {
+                char buf[64];
+                if (coldbootTitleOptions[i].tid != 0) {
+                    // Append the title ID in hi-lo format.
+                    snprintf(buf, sizeof(buf), "%s - %08lx-%08lx", coldbootTitleOptions[i].desc,
+                        (uint32_t)(coldbootTitleOptions[i].tid >> 32),
+                        (uint32_t)(coldbootTitleOptions[i].tid & 0xFFFFFFFFU));
+                } else {
+                    // No title ID. Use the option by itself.
+                    snprintf(buf, sizeof(buf), "%s", coldbootTitleOptions[i].desc);
+                }
+
                 gfx_draw_rect_filled(16 - 1, index - 1,
-                    gfx_get_text_width(coldbootTitleOptions[i]) + 2, CHAR_SIZE_DRC_Y + 2,
+                    gfx_get_text_width(buf) + 2, CHAR_SIZE_DRC_Y + 2,
                     selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
 
                 gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                gfx_printf(16, index, 0, coldbootTitleOptions[i]);
+                gfx_printf(16, index, 0, buf);
 
                 index += CHAR_SIZE_DRC_Y + 4;
             }
