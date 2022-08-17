@@ -26,8 +26,6 @@ static terminus_font *font = NULL;
 
 extern int lzo_res;
 int lzo_res;
-extern unsigned int lzo_data_len;
-unsigned int lzo_data_len;
 
 int gfx_init_font(void)
 {
@@ -51,8 +49,6 @@ int gfx_init_font(void)
         return -2;
     }
 
-    lzo_res = res;
-    lzo_data_len = data_len;
     // LZO decompression succeeded.
     return 0;
 }

@@ -80,12 +80,9 @@ static void drawBars(const char *title)
 {
     drawTopBar(title);
 
-extern int lzo_res;
-extern unsigned int lzo_data_len;
-
     // draw bottom bar
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate %d %u", lzo_res, lzo_data_len);
+    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
     gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
 }
 
