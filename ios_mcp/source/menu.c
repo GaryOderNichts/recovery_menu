@@ -1004,8 +1004,8 @@ static void option_SystemInformation(void)
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
 
+    int productArea_id = 0;    // 0-6, matches title ID
     MCPSysProdSettings sysProdSettings;
-    MCPRegion productArea = 0;
     sysProdSettings.product_area = 0;
     int mcpHandle = IOS_Open("/dev/mcp", 0);
     if (mcpHandle >= 0) {
@@ -1018,9 +1018,9 @@ static void option_SystemInformation(void)
 
             // productArea is a single region.
             if (sysProdSettings.product_area != 0) {
-                productArea = __builtin_ctz(sysProdSettings.product_area);
-                if (productArea < 7) {
-                    gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea]);
+                productArea_id = __builtin_ctz(sysProdSettings.product_area);
+                if (productArea_id < 7) {
+                    gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
                     index += CHAR_SIZE_DRC_Y + 4;
                 }
             }
@@ -1062,31 +1062,24 @@ static void option_SystemInformation(void)
     version_bin_t *const version_bin = (version_bin_t*)((uint8_t*)dataBuffer + 0x600);
     version_bin->ver_magic.u32 = 0;
 
-    char path[] = "/vol/storage_mlc01/sys/title/00050010/10041000/content/version.bin";
-    for (unsigned int region = '0'; region < '3'; region++) {
-        path[43] = region;
+    char path[] = "/vol/storage_mlc01/sys/title/00050010/10041x00/content/version.bin";
+    path[43] = productArea_id + '0';
 
-        int verHandle;
-        int res = FSA_OpenFile(fsaHandle, path, "r", &verHandle);
-        if (res < 0)
-            continue;
-
+    int verHandle;
+    res = FSA_OpenFile(fsaHandle, path, "r", &verHandle);
+    if (res >= 0) {
         // version.bin should always be 64 bytes.
         res = FSA_ReadFile(fsaHandle, version_bin, 1, sizeof(*version_bin), verHandle, 0);
         FSA_CloseFile(fsaHandle, verHandle);
-        if (res == sizeof(*version_bin))
-            break;
-
-        // Not 64 bytes. Skip this file.
-        version_bin->ver_magic.u32 = 0;
-    }
-
-    // Did we find a valid version.bin?
-    if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
-        // Found a valid version.bin.
-        gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u%c",
-            version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
-        index += CHAR_SIZE_DRC_Y + 4;
+        if (res == sizeof(*version_bin)) {
+            // Did we find a valid version.bin?
+            if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
+                // Found a valid version.bin.
+                gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u%c",
+                    version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
+                index += CHAR_SIZE_DRC_Y + 4;
+            }
+        }
     }
 
     // TODO: productArea, gameRegion, IOSU version, Wii U Menu version
