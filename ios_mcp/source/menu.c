@@ -940,18 +940,26 @@ static void option_SystemInformation(void)
 
     memcpy(buf1, &seeprom[0xB8], 16);
     buf1[16] = '\0';
-    gfx_printf(16, index, 0, "Model:  %s", buf1);
+    gfx_printf(16, index, 0, "Model:    %s", buf1);
     index += CHAR_SIZE_DRC_Y + 4;
 
     memcpy(buf1, &seeprom[0xAC], 8);
     buf1[8] = '\0';
     memcpy(buf2, &seeprom[0xB0], 16);
     buf2[16] = '\0';
-    gfx_printf(16, index, 0, "Serial: %s%s", buf1, buf2);
+    gfx_printf(16, index, 0, "Serial:   %s%s", buf1, buf2);
     index += CHAR_SIZE_DRC_Y + 4;
 
+    if (seeprom[0xC4] != 0) {
+        gfx_printf(16, index, 0, "Mfg Date: %04x/%02x/%02x %02x:%02x",
+            seeprom[0xC4], seeprom[0xC5] >> 8, seeprom[0xC5] & 0xFF,
+            seeprom[0xC6] >> 8, seeprom[0xC6] & 0xFF);
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
+
     static const char keyset_tbl[4][8] = {"Factory", "Debug", "Retail", "Invalid"};
-    gfx_printf(16, index, 0, "Keyset: %s", keyset_tbl[(otp[0x080] & 0x18) >> 3]);
+    gfx_printf(16, index, 0, "Keyset:   %s", keyset_tbl[(otp[0x080] & 0x18) >> 3]);
+
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
 
