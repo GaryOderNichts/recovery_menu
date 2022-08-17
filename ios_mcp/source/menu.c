@@ -167,10 +167,12 @@ static void option_SetColdbootTitle(void)
             uint32_t index = 16 + 8 + 2 + 8;
 
             // draw current titles
-            gfx_printf(16, index, 0, "Current coldboot title:    0x%016llx", currentColdbootTitle);
+            gfx_printf(16, index, 0, "Current coldboot title:    %08x-%08x",
+                (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
             index += CHAR_SIZE_DRC_Y + 4;
 
-            gfx_printf(16, index, 0, "Current coldboot os:       0x%016llx", currentColdbootOS);
+            gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x", 
+                (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
             // draw options
@@ -189,7 +191,8 @@ static void option_SetColdbootTitle(void)
 
             if (newtid) {
                 index += (CHAR_SIZE_DRC_Y + 4) * 2;
-                gfx_printf(16, index, 0, "Setting coldboot title id to 0x%016llx, rval %d", newtid, rval);
+                gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
+                    (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
                 index += CHAR_SIZE_DRC_Y + 4;
                 if (rval < 0) {
                     gfx_set_font_color(COLOR_ERROR);
