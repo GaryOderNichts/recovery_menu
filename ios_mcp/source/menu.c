@@ -293,10 +293,18 @@ static void option_SetColdbootTitle(void)
 
         if (newtid) {
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
+
+            gfx_draw_rect_filled(16 - 1, index - 1,
+                (CHAR_SIZE_DRC_X * (38+8+8+3)) + 2, CHAR_SIZE_DRC_Y + 2,
+                COLOR_BACKGROUND);
             gfx_set_font_color(COLOR_PRIMARY);
             gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
                 (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
             index += CHAR_SIZE_DRC_Y + 4;
+
+            gfx_draw_rect_filled(16 - 1, index - 1,
+                (CHAR_SIZE_DRC_X * 47) + 2, CHAR_SIZE_DRC_Y + 2,
+                COLOR_BACKGROUND);
             if (rval < 0) {
                 gfx_set_font_color(COLOR_ERROR);
                 gfx_printf(16, index, 0, "Error! Make sure title is installed correctly.");
