@@ -844,7 +844,7 @@ static void option_EditParental(void)
                 gfx_set_font_color(COLOR_ERROR);
                 gfx_printf(16, index, 0, "SCIGetParentalPinCode failed: %d", res);
             }
-            index += (8 + 4) * 2;
+            index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
             gfx_set_font_color(COLOR_PRIMARY);
 
@@ -852,7 +852,7 @@ static void option_EditParental(void)
 
             // Back button
             gfx_draw_rect_filled(16 - 1, index - 1,
-                gfx_get_text_width("Back") + 2, 8 + 2,
+                gfx_get_text_width("Back") + 2, CHAR_SIZE_DRC_Y + 2,
                 !selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
 
             gfx_set_font_color(!selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
@@ -862,7 +862,7 @@ static void option_EditParental(void)
 
             // Disable button
             gfx_draw_rect_filled(16 - 1, index - 1,
-                gfx_get_text_width("Disable") + 2, 8 + 2,
+                gfx_get_text_width("Disable") + 2, CHAR_SIZE_DRC_Y + 2,
                 selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
 
             gfx_set_font_color(selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
