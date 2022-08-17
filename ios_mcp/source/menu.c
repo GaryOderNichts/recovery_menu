@@ -44,6 +44,7 @@ static void option_LoadNetConf(void);
 static void option_displayDRCPin(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
+static void option_SystemInformation(void);
 static void option_Shutdown(void);
 
 extern int ppcHeartBeatThreadId;
@@ -64,6 +65,7 @@ static struct {
     { "Display DRC Pin", option_displayDRCPin },
     { "Install WUP", option_InstallWUP, },
     { "Edit Parental Controls", option_EditParental, },
+    { "System Information", option_SystemInformation, },
     { "Shutdown", option_Shutdown },
 };
 static const int numMainMenuOptions = sizeof(mainMenuOptions) / sizeof(mainMenuOptions[0]);
@@ -858,6 +860,116 @@ static void option_EditParental(void)
             redraw = 0;
         }
     }
+}
+
+static void option_SystemInformation(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("System Information");
+
+    uint32_t index = 16 + 8 + 2 + 8;
+
+    // parse OTP/SEEPROM for system information
+    // 0x000-0x3FF: OTP
+    // 0x400-0x5FF: SEEPROM
+    void *dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x600, 0x40);
+    if (!dataBuffer) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Out of memory!");
+        waitButtonInput();
+        return;
+    }
+    uint8_t *const otp = (uint8_t*)dataBuffer;
+    uint16_t *const seeprom = (uint16_t*)dataBuffer + 0x200;
+
+    int res = readOTP((void*)otp, 0x400);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
+        IOS_HeapFree(0xcaff, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    res = EEPROM_Read(0, 0x100, seeprom);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
+        IOS_HeapFree(0xcaff, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    // NOTE: gfx_printf() does not support precision specifiers.
+    // We'll have to ensure the strings are terminated manually.
+    char buf1[17];
+    char buf2[17];
+
+    memcpy(buf1, &seeprom[0xB8], 16);
+    buf1[16] = '\0';
+    gfx_printf(16, index, 0, "Model:  %s", buf1);
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    memcpy(buf1, &seeprom[0xAC], 8);
+    buf1[8] = '\0';
+    memcpy(buf2, &seeprom[0xB0], 16);
+    buf2[16] = '\0';
+    gfx_printf(16, index, 0, "Serial: %s%s", buf1, buf2);
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    static const char keyset_tbl[4][8] = {"Factory", "Debug", "Retail", "Invalid"};
+    gfx_printf(16, index, 0, "Keyset: %s", keyset_tbl[(otp[0x080] & 0x18) >> 3]);
+    index += CHAR_SIZE_DRC_Y + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    memcpy(buf1, &seeprom[0x21], 2);
+    buf1[2] = '\0';
+    gfx_printf(16, index, 0, "boardType:   %s", buf1);
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    const unsigned int sataDevice_id = seeprom[0x2C];
+    static const char *const sataDevice_tbl[] = {
+        NULL, "Default", "No device", "ROM drive",
+        "R drive", "MION", "SES", "GEN2-HDD",
+        "GEN1-HDD",
+    };
+    const char *sataDevice = NULL;
+    if (sataDevice_id < 9) {
+        sataDevice = sataDevice_tbl[sataDevice_id];
+    }
+    gfx_printf(16, index, 0, "sataDevice:  %u %s", sataDevice_id, sataDevice ? sataDevice : "");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    const unsigned int consoleType_id = seeprom[0x2D];
+    static const char *const consoleType_tbl[] = {
+        NULL, "WUP", "CAT-R", "CAT-DEV",
+        "EV board", "CAT-I", "OrchestraX", "WUIH",
+        "WUIH_DEV", "CAT_DEV_WUIH",
+    };
+    const char *consoleType = NULL;
+    if (consoleType_id < 10) {
+        consoleType = consoleType_tbl[consoleType_id];
+    }
+    gfx_printf(16, index, 0, "consoleType: %u %s", consoleType_id, consoleType ? consoleType : "");
+    index += CHAR_SIZE_DRC_Y + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    // Product area (console region)
+    // TODO: Game region in SEEPROM isn't set properly. Use MCP_GetSysProdSettings()?
+    const unsigned int productArea_id = seeprom[0xA5];
+    static const char productArea_tbl[][4] = {
+        "JPN", "USA", "EUR", "AUS", "CHN", "KOR", "TWN"
+    };
+    const char *productArea = NULL;
+    if (productArea_id < 7) {
+        productArea = productArea_tbl[productArea_id];
+    }
+    gfx_printf(16, index, 0, "productArea: %u %s", productArea_id, productArea ? productArea : "");
+
+    // TODO: IOSU version, Wii U Menu version
+
+    IOS_HeapFree(0xcaff, dataBuffer);
+    waitButtonInput();
 }
 
 static void option_Shutdown(void)
