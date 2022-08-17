@@ -110,6 +110,38 @@ typedef enum {
 } MenuFlags;
 
 /**
+ * Draw a single menu item. Called by drawMenu().
+ * @param menuItem Menu item
+ * @param selected If non-zero, item is selected
+ * @param flags
+ * @param x
+ * @param y
+ */
+static void drawMenuItem(const Menu* menuItem, int selected, uint32_t flags, uint32_t x, uint32_t y)
+{
+    const char *text;
+    char buf[64];
+    if (!(flags & MenuFlag_ShowTID)) {
+        text = menuItem->name;
+    } else {
+        if (menuItem->tid != 0) {
+            snprintf(buf, sizeof(buf), "%s - %08lx-%08lx",
+                menuItem->name, (uint32_t)(menuItem->tid >> 32), (uint32_t)(menuItem->tid & 0xFFFFFFFF));
+            text = buf;
+        } else {
+            text = menuItem->name;
+        }
+    }
+
+    gfx_draw_rect_filled(x - 1, y - 1,
+        gfx_get_text_width(text) + 2, CHAR_SIZE_DRC_Y + 2,
+        selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
+
+    gfx_set_font_color(selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
+    gfx_print(x, y, 0, text);
+}
+
+/**
  * Draw a menu and wait for the user to select an option.
  * @param title Menu title
  * @param menu Array of menu entries
@@ -119,10 +151,20 @@ typedef enum {
  * @param y
  * @return Selected menu entry index.
  */
-static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t flags, uint32_t x, uint32_t y)
+static int drawMenu(const char* title, const Menu* menu, size_t count, uint32_t flags, uint32_t x, uint32_t y)
 {
     int redraw = 1;
-    int selected = 0;
+    int selected = 0, prev_selected = -1;
+
+    // draw the full menu
+    if (!(flags & MenuFlag_NoClearScreen)) {
+        gfx_clear(COLOR_BACKGROUND);
+    }
+    int index = y;
+    for (int i = 0; i < count; i++) {
+        drawMenuItem(&menu[i], selected == i, flags, x, index);
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
 
     uint8_t cur_flag = 0;
     uint8_t flag = 0;
@@ -130,6 +172,7 @@ static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t 
         readSystemEventFlag(&flag);
         if (cur_flag != flag) {
             if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
+                prev_selected = selected;
                 selected++;
                 if (selected == count)
                     selected = 0;
@@ -141,43 +184,16 @@ static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t 
         }
 
         if (redraw) {
-            if (!(flags & MenuFlag_NoClearScreen)) {
-                gfx_clear(COLOR_BACKGROUND);
-            }
-
-            int index = y;
-            if (!(flags & MenuFlag_ShowTID)) {
-                for (int i = 0; i < count; i++) {
-                    gfx_draw_rect_filled(x - 1, index - 1,
-                        gfx_get_text_width(menu[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
-                        selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-                    gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                    gfx_print(x, index, 0, menu[i].name);
-
-                    index += CHAR_SIZE_DRC_Y + 4;
+            if (prev_selected != selected) {
+                // Redraw the previously selected menu item.
+                if (prev_selected >= 0) {
+                    index = y + ((CHAR_SIZE_DRC_Y + 4) * prev_selected);
+                    drawMenuItem(&menu[prev_selected], 0, flags, x, index);
                 }
-            } else {
-                for (int i = 0; i < count; i++) {
-                    const char *text;
-                    char buf[64];
-                    if (menu[i].tid != 0) {
-                        snprintf(buf, sizeof(buf), "%s - %08lx-%08lx",
-                            menu[i].name, (uint32_t)(menu[i].tid >> 32), (uint32_t)(menu[i].tid & 0xFFFFFFFF));
-                        text = buf;
-                    } else {
-                        text = menu[i].name;
-                    }
 
-                    gfx_draw_rect_filled(x - 1, index - 1,
-                        gfx_get_text_width(text) + 2, CHAR_SIZE_DRC_Y + 2,
-                        selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-                    gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                    gfx_print(x, index, 0, text);
-
-                    index += CHAR_SIZE_DRC_Y + 4;
-                }
+                // Redraw the selected item.
+                index = y + ((CHAR_SIZE_DRC_Y + 4) * selected);
+                drawMenuItem(&menu[selected], 1, flags, x, index);
             }
 
             gfx_set_font_color(COLOR_PRIMARY);
