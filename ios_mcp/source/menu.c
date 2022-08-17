@@ -970,7 +970,11 @@ static void option_SystemInformation(void)
     if (sataDevice_id < 9) {
         sataDevice = sataDevice_tbl[sataDevice_id];
     }
-    gfx_printf(16, index, 0, "sataDevice:  %u %s", sataDevice_id, sataDevice ? sataDevice : "");
+    if (sataDevice) {
+        gfx_printf(16, index, 0, "sataDevice:  %u (%s)", sataDevice_id, sataDevice);
+    } else {
+        gfx_printf(16, index, 0, "sataDevice:  %u", sataDevice_id);
+    }
     index += CHAR_SIZE_DRC_Y + 4;
 
     const unsigned int consoleType_id = seeprom[0x2D];
@@ -983,7 +987,11 @@ static void option_SystemInformation(void)
     if (consoleType_id < 10) {
         consoleType = consoleType_tbl[consoleType_id];
     }
-    gfx_printf(16, index, 0, "consoleType: %u %s", consoleType_id, consoleType ? consoleType : "");
+    if (consoleType) {
+        gfx_printf(16, index, 0, "consoleType: %u (%s)", consoleType_id, consoleType);
+    } else {
+        gfx_printf(16, index, 0, "consoleType: %u", consoleType_id);
+    }
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
 
