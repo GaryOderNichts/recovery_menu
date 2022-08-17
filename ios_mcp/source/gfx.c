@@ -19,7 +19,7 @@ static uint32_t *const DRC_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x38c0000);
 static uint32_t font_color = 0xFFFFFFFF;
 
 // Terminus fonts (8x16 for DRC, 12x24 for TV)
-// NOTE: Allocated using IOS_HeapAllocAligned().
+// NOTE: Allocated using IOS_HeapAlloc().
 #include "font_bin.h"
 #include "minilzo/minilzo.h"
 static terminus_font *font = NULL;
@@ -32,7 +32,7 @@ int gfx_init_font(void)
     if (font)
         return 0;
 
-    font = IOS_HeapAllocAligned(0xcaff, sizeof(*font), 0x40);
+    font = IOS_HeapAlloc(0xcaff, sizeof(*font));
     if (!font) {
         printf("Memory allocation for the font buffer failed!\n");
         return -1;

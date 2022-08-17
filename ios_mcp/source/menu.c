@@ -143,18 +143,16 @@ static void option_SetColdbootTitle(void)
                     return;
                 case 1:
                     newtid = 0x0005001010040000llu;
-                    rval = setDefaultTitleId(newtid);
                     break;
                 case 2:
                     newtid = 0x0005001010040100llu;
-                    rval = setDefaultTitleId(newtid);
                     break;
                 case 3:
                     newtid = 0x0005001010040200llu;
-                    rval = setDefaultTitleId(newtid);
                     break;
                 }
 
+                rval = setDefaultTitleId(newtid);
                 redraw = 1;
             }
 
@@ -437,7 +435,8 @@ static void option_StartWupserver(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "IP address: %d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+    gfx_printf(16, index, 0, "IP address: %u.%u.%u.%u",
+        ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = socketInit();
