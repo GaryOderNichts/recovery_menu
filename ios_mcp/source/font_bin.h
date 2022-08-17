@@ -1,11 +1,10 @@
+#pragma once
+
 // Fonts used: Terminus 1.49 - ter-u16b.bdf, ter-u24b.bdf
 // - http://terminus-font.sourceforge.net/
 // Character encoding is ASCII.
 
 // NOTE: Only characters [32,128) are included due to size constraints.
-
-#ifndef __TERMINUS_FONT_BIN_H__
-#define __TERMINUS_FONT_BIN_H__
 
 // Decompressed Terminus font data.
 typedef struct _terminus_font {
@@ -128,5 +127,3 @@ static const unsigned char terminus_lzo1x[1674] = {
     0x7d,0x10,0x1c,0xd4,0xc4,0xa4,0x64,0x2a,0x6c,0x34,0x74,0x0d,0x2c,0x8d,0x03,0x3c,
     0x95,0x26,0xc6,0x20,0x33,0x18,0x47,0x11,0x00,0x00
 };
-
-#endif /* __TERMINUS_FONT_BIN_H__ */

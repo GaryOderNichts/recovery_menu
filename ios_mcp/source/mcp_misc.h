@@ -1,5 +1,4 @@
-#ifndef __RECOVERY_MENU_IOS_MCP_MCP_MISC_H__
-#define __RECOVERY_MENU_IOS_MCP_MCP_MISC_H__
+#pragma once
 
 #include <assert.h>
 #include <stdint.h>
@@ -39,5 +38,3 @@ typedef struct __attribute__((packed)) _MCPSysProdSettings {
 static_assert(sizeof(MCPSysProdSettings) == 0x46, "MCPSysProdSettings: different size than expected");
 
 int MCP_GetSysProdSettings(int handle, MCPSysProdSettings* out_sysProdSettings);
-
-#endif /* __RECOVERY_MENU_IOS_MCP_MCP_MISC_H__ */
