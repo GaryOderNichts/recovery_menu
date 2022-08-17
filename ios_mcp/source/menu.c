@@ -1006,8 +1006,13 @@ static void option_SystemInformation(void)
     // Wii U Menu version
     // FIXME: CAT-I has all three region versions installed.
     // Need to get the actual productArea from sys_prod.xml.
+#define VERSION_BIN_MAGIC_STR "VER\0"
+#define VERSION_BIN_MAGIC_U32 0x56455200
     typedef struct _version_bin_t {
-        char ver_magic[4];  // [0x000] "VER\0"
+        union {
+            char c[4];       // [0x000] "VER\0"
+            uint32_t u32;   // [0x000] 0x56455200
+        } ver_magic;
         uint32_t major;     // [0x004] Major version
         uint32_t minor;     // [0x008] Minor version
         uint32_t revision;  // [0x00C] Revision
@@ -1016,7 +1021,7 @@ static void option_SystemInformation(void)
         uint8_t reserved[47];   // [0x011]
     } version_bin_t;
     version_bin_t *const version_bin = (version_bin_t*)((uint8_t*)dataBuffer + 0x600);
-    version_bin->ver_magic[0] = '\0';
+    version_bin->ver_magic.u32 = 0;
 
     char path[] = "/vol/storage_mlc01/sys/title/00050010/10041000/content/version.bin";
     for (unsigned int region = '0'; region < '3'; region++) {
@@ -1033,12 +1038,12 @@ static void option_SystemInformation(void)
         if (res == sizeof(*version_bin))
             break;
 
-        // Not found.
-        version_bin->ver_magic[0] = '\0';
+        // Not 64 bytes. Skip this file.
+        version_bin->ver_magic.u32 = 0;
     }
 
     // Did we find a valid version.bin?
-    if (!strncmp(version_bin->ver_magic, "VER", 4)) {
+    if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
         // Found a valid version.bin.
         gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u%c",
             version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
