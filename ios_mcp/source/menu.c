@@ -114,13 +114,14 @@ static int isSystemUsingDebugKeyset(void)
     int ret = 0;
 
     // Check OTP to see if this system is using the Debug keyset.
+    // NOTE: Includes "Factory" as well.
     uint8_t *const dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
     if (!dataBuffer)
         return ret;
 
     int res = readOTP(dataBuffer, 0x400);
     if (res >= 0) {
-        ret = ((dataBuffer[0x080] & 0x18) == 0x08);
+        ret = ((dataBuffer[0x080] & 0x18) != 0x10);
     }
 
     IOS_HeapFree(0xcaff, dataBuffer);
