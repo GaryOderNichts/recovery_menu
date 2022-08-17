@@ -985,19 +985,10 @@ static void option_SystemInformation(void)
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
 
-    // Product area (console region)
-    // TODO: Game region in SEEPROM isn't set properly. Use MCP_GetSysProdSettings()?
-    const unsigned int productArea_id = seeprom[0xA5];
-    static const char productArea_tbl[][4] = {
-        "JPN", "USA", "EUR", "AUS", "CHN", "KOR", "TWN"
-    };
-    const char *productArea = NULL;
-    if (productArea_id < 7) {
-        productArea = productArea_tbl[productArea_id];
-    }
-    gfx_printf(16, index, 0, "productArea: %u %s", productArea_id, productArea ? productArea : "");
-
-    // TODO: IOSU version, Wii U Menu version
+    // TODO: productArea, gameRegion, IOSU version, Wii U Menu version
+    // - productArea is set to 2 on my CAT-I that's actually set to USA.
+    // - gameRegion is set to 0 on all systems I've used.
+    // TODO: Use MCP_GetSysProdSettings()?
 
     IOS_HeapFree(0xcaff, dataBuffer);
     waitButtonInput();
