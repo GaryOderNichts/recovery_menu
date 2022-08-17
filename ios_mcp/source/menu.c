@@ -299,7 +299,7 @@ static void option_SetColdbootTitle(void)
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
             gfx_draw_rect_filled(16 - 1, index - 1,
-                (CHAR_SIZE_DRC_X * (37+8+8+3)) + 2, CHAR_SIZE_DRC_Y + 2,
+                (CHAR_SIZE_DRC_X * (37+8+8+11)) + 2, CHAR_SIZE_DRC_Y + 2,
                 COLOR_BACKGROUND);
             gfx_set_font_color(COLOR_PRIMARY);
             gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
@@ -873,105 +873,76 @@ static void option_InstallWUP(void)
 
 static void option_EditParental(void)
 {
-    int redraw = 1;
-    int selected = 0;
+    static const Menu parentalControlOptions[] = {
+        {"Back", {0} },
+        {"Disable", {0} },
+    };
 
-    int toggled = 0;
-    int rval = 0;
-
-    uint8_t cur_flag = 0;
-    uint8_t flag = 0;
+    int rval;
+    gfx_clear(COLOR_BACKGROUND);
     while (1) {
-        readSystemEventFlag(&flag);
-        if (cur_flag != flag) {
-            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
-                selected = !selected;
-                redraw = 1;
-            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
-                if (selected) {
-                    rval = SCISetParentalEnable(0);
-                    toggled = 1;
-                    redraw = 1;
-                } else {
-                    return;
-                }
-            }
+        uint32_t index = 16 + 8 + 2 + 8;
+        gfx_set_font_color(COLOR_PRIMARY);
 
-            cur_flag = flag;
+        // draw current parental control info
+        gfx_draw_rect_filled(16 - 1, index - 1,
+            (CHAR_SIZE_DRC_X * (29+11)) + 2, CHAR_SIZE_DRC_Y + 2,
+            COLOR_BACKGROUND);
+        uint8_t enabled = 0;
+        int res = SCIGetParentalEnable(&enabled);
+        if (res == 1) {
+            gfx_set_font_color(COLOR_PRIMARY);
+            gfx_printf(16, index, 0, "Parental Controls: %s", enabled ? "Enabled" : "Disabled");
+        } else {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_printf(16, index, 0, "SCIGetParentalEnable failed: %d", res);
         }
+        index += CHAR_SIZE_DRC_Y + 4;
 
-        if (redraw) {
-            gfx_clear(COLOR_BACKGROUND);
-            uint32_t index = 16 + 8 + 2 + 8;
-
-            uint8_t enabled = 0;
-            int res = SCIGetParentalEnable(&enabled);
-            if (res == 1) {
-                gfx_printf(16, index, 0, "Parental Controls: %s", enabled ? "Enabled" : "Disabled");
-            } else {
-                gfx_set_font_color(COLOR_ERROR);
-                gfx_printf(16, index, 0, "SCIGetParentalEnable failed: %d", res);
-            }
-            index += CHAR_SIZE_DRC_Y + 4;
-
+        gfx_draw_rect_filled(16 - 1, index - 1,
+            (CHAR_SIZE_DRC_X * (30+3)) + 2, CHAR_SIZE_DRC_Y + 2,
+            COLOR_BACKGROUND);
+        char pin[5] = "";
+        res = SCIGetParentalPinCode(pin, sizeof(pin));
+        if (res == 1) {
             gfx_set_font_color(COLOR_PRIMARY);
-
-            char pin[5] = "";
-            res = SCIGetParentalPinCode(pin, sizeof(pin));
-            if (res == 1) {
-                gfx_printf(16, index, 0, "Parental Pin Code: %s", pin);
-            } else {
-                gfx_set_font_color(COLOR_ERROR);
-                gfx_printf(16, index, 0, "SCIGetParentalPinCode failed: %d", res);
-            }
-            index += (CHAR_SIZE_DRC_Y + 4) * 2;
-
-            gfx_set_font_color(COLOR_PRIMARY);
-
-            // draw options
-
-            // Back button
-            gfx_draw_rect_filled(16 - 1, index - 1,
-                gfx_get_text_width("Back") + 2, CHAR_SIZE_DRC_Y + 2,
-                !selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-            gfx_set_font_color(!selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Back");
-
-            index += CHAR_SIZE_DRC_Y + 4;
-
-            // Disable button
-            gfx_draw_rect_filled(16 - 1, index - 1,
-                gfx_get_text_width("Disable") + 2, CHAR_SIZE_DRC_Y + 2,
-                selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-            gfx_set_font_color(selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Disable");
-
-            index += CHAR_SIZE_DRC_Y + 4;
-
-            gfx_set_font_color(COLOR_PRIMARY);
-
-            if (toggled) {
-                index += CHAR_SIZE_DRC_Y + 4;
-                
-                gfx_printf(16, index, 0, "SCISetParentalEnable(false): %d", rval);
-                index += CHAR_SIZE_DRC_Y + 4;
-
-                if (rval != 1) {
-                    gfx_set_font_color(COLOR_ERROR);
-                    gfx_printf(16, index, 0, "Error!");
-                } else {
-                    gfx_set_font_color(COLOR_SUCCESS);
-                    gfx_printf(16, index, 0, "Success!");
-                }
-
-                index += CHAR_SIZE_DRC_Y + 4;
-            }
-
-            drawBars("Edit Parental Controls");
-            redraw = 0;
+            gfx_printf(16, index, 0, "Parental Pin Code: %s", pin);
+        } else {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_printf(16, index, 0, "SCIGetParentalPinCode failed: %d", res);
         }
+        index += (CHAR_SIZE_DRC_Y + 4) * 2;
+
+        gfx_set_font_color(COLOR_PRIMARY);
+
+        int selected = drawMenu("Edit Parental Controls",
+            parentalControlOptions, ARRAY_SIZE(parentalControlOptions),
+            MenuFlag_NoClearScreen, 16, index);
+        index += (CHAR_SIZE_DRC_Y + 4) * ARRAY_SIZE(parentalControlOptions);
+
+        if (selected == 0)
+            return;
+
+        // Option 1: Disable the parental controls.
+        rval = SCISetParentalEnable(0);
+
+        gfx_draw_rect_filled(16 - 1, index - 1,
+            (CHAR_SIZE_DRC_X * (29+11)) + 2, CHAR_SIZE_DRC_Y + 2,
+            COLOR_BACKGROUND);
+        gfx_printf(16, index, 0, "SCISetParentalEnable(false): %d", rval);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        gfx_draw_rect_filled(16 - 1, index - 1,
+            (CHAR_SIZE_DRC_X * 8) + 2, CHAR_SIZE_DRC_Y + 2,
+            COLOR_BACKGROUND);
+        if (rval != 1) {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_printf(16, index, 0, "Error!");
+        } else {
+            gfx_set_font_color(COLOR_SUCCESS);
+            gfx_printf(16, index, 0, "Success!");
+        }
+        index += CHAR_SIZE_DRC_Y + 4;
     }
 }
 
