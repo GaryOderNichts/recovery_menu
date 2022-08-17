@@ -33,14 +33,14 @@ MACHDEP = -DSTARBUCK -mbig-endian -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft
 #---------------------------------------------------------------------------------
 TARGET		:= $(notdir $(CURDIR))
 BUILD		:= build
-SOURCES		:= source
+SOURCES		:= source source/minilzo
 DATA		:= data
 INCLUDES	:= source
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-CFLAGS	:= -Wall -std=gnu11 -Os -flto -fno-tree-loop-distribute-patterns -fno-builtin $(MACHDEP) $(INCLUDE)
+CFLAGS	:= -Wall -std=gnu11 -Os -flto -fno-tree-loop-distribute-patterns -fno-builtin -DMINILZO_CFG_SKIP_LZO1X_1_COMPRESS $(MACHDEP) $(INCLUDE)
 
 ASFLAGS	:= $(MACHDEP)
 
