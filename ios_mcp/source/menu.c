@@ -980,7 +980,7 @@ static void option_SystemInformation(void)
     const unsigned int consoleType_id = seeprom[0x2D];
     static const char *const consoleType_tbl[] = {
         NULL, "WUP", "CAT-R", "CAT-DEV",
-        "EV board", "CAT-I", "OrchestraX", "WUIH",
+        "EV board", "Kiosk", "OrchestraX", "WUIH",
         "WUIH_DEV", "CAT_DEV_WUIH",
     };
     const char *consoleType = NULL;
