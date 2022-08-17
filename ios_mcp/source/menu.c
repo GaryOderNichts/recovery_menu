@@ -146,15 +146,19 @@ static void drawMenuItem(const Menu* menuItem, int selected, uint32_t flags, uin
  * @param title Menu title
  * @param menu Array of menu entries
  * @param count Number of menu entries
+ * @param selected Initial selected item index
  * @param flags
  * @param x
  * @param y
  * @return Selected menu entry index.
  */
-static int drawMenu(const char* title, const Menu* menu, size_t count, uint32_t flags, uint32_t x, uint32_t y)
+static int drawMenu(const char* title, const Menu* menu, size_t count,
+        int selected, uint32_t flags, uint32_t x, uint32_t y)
 {
     int redraw = 1;
-    int selected = 0, prev_selected = -1;
+    int prev_selected = -1;
+    if (selected < 0 || selected >= count)
+        selected = 0;
 
     // draw the full menu
     if (!(flags & MenuFlag_NoClearScreen)) {
@@ -262,6 +266,7 @@ static void option_SetColdbootTitle(void)
 
     int rval;
     uint64_t newtid = 0;
+    int selected = 0;
 
     gfx_clear(COLOR_BACKGROUND);
     while (1) {
@@ -283,8 +288,8 @@ static void option_SetColdbootTitle(void)
             (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
         index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
-        int selected = drawMenu("Set Coldboot Title",
-            coldbootTitleOptions, option_count,
+        selected = drawMenu("Set Coldboot Title",
+            coldbootTitleOptions, option_count, selected,
             MenuFlag_ShowTID | MenuFlag_NoClearScreen, 16, index);
         index += (CHAR_SIZE_DRC_Y + 4) * option_count;
 
@@ -879,6 +884,8 @@ static void option_EditParental(void)
     };
 
     int rval;
+    int selected = 0;
+
     gfx_clear(COLOR_BACKGROUND);
     while (1) {
         uint32_t index = 16 + 8 + 2 + 8;
@@ -915,8 +922,8 @@ static void option_EditParental(void)
 
         gfx_set_font_color(COLOR_PRIMARY);
 
-        int selected = drawMenu("Edit Parental Controls",
-            parentalControlOptions, ARRAY_SIZE(parentalControlOptions),
+        selected = drawMenu("Edit Parental Controls",
+            parentalControlOptions, ARRAY_SIZE(parentalControlOptions), selected,
             MenuFlag_NoClearScreen, 16, index);
         index += (CHAR_SIZE_DRC_Y + 4) * ARRAY_SIZE(parentalControlOptions);
 
@@ -1200,9 +1207,11 @@ int menuThread(void* arg)
         printf("Failed to open FSA: %x\n", fsaHandle);
     }
 
+    int selected = 0;
     while (1) {
-        int selected = drawMenu("Wii U Recovery Menu v0.2 by GaryOderNichts",
-            mainMenuOptions, ARRAY_SIZE(mainMenuOptions), 0, 16, 16+8+2+8);
+        selected = drawMenu("Wii U Recovery Menu v0.2 by GaryOderNichts",
+            mainMenuOptions, ARRAY_SIZE(mainMenuOptions), selected,
+            0, 16, 16+8+2+8);
         if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {
             mainMenuOptions[selected].callback();
         }
