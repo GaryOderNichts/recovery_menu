@@ -26,6 +26,7 @@
 #include "mcp_install.h"
 #include "ccr.h"
 #include "sci.h"
+#include "mcp_misc.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -1002,6 +1003,44 @@ static void option_SystemInformation(void)
     }
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
+
+    MCPSysProdSettings sysProdSettings;
+    MCPRegion productArea = 0;
+    sysProdSettings.product_area = 0;
+    int mcpHandle = IOS_Open("/dev/mcp", 0);
+    if (mcpHandle >= 0) {
+        res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
+        if (res >= 0) {
+            static const char region_tbl[7][4] = {
+                "JPN", "USA", "EUR", "AUS",
+                "CHN", "KOR", "TWN",
+            };
+
+            // productArea is a single region.
+            if (sysProdSettings.product_area != 0) {
+                productArea = __builtin_ctz(sysProdSettings.product_area);
+                if (productArea < 7) {
+                    gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea]);
+                    index += CHAR_SIZE_DRC_Y + 4;
+                }
+            }
+
+            // gameRegion is multiple regions.
+            gfx_printf(16, index, 0, "gameRegion:  %s %s %s %s %s %s",
+                (sysProdSettings.game_region & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
+                (sysProdSettings.game_region & MCP_REGION_USA)    ? region_tbl[1] : "---",
+                (sysProdSettings.game_region & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
+                (sysProdSettings.game_region & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
+                (sysProdSettings.game_region & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
+                (sysProdSettings.game_region & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
+            index += CHAR_SIZE_DRC_Y + 4;
+        } else {
+            // Failed to get sys_prod settings.
+            // Clear the product area.
+            sysProdSettings.product_area = 0;
+        }
+        IOS_Close(mcpHandle);
+    }
 
     // Wii U Menu version
     // FIXME: CAT-I has all three region versions installed.
