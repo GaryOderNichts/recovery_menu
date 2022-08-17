@@ -71,7 +71,7 @@ static struct {
 };
 static const int numMainMenuOptions = sizeof(mainMenuOptions) / sizeof(mainMenuOptions[0]);
 
-static void drawTopBar(const char *title)
+static void drawTopBar(const char* title)
 {
     // draw top bar
     gfx_set_font_color(COLOR_PRIMARY);
@@ -79,7 +79,7 @@ static void drawTopBar(const char *title)
     gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
 }
 
-static void drawBars(const char *title)
+static void drawBars(const char* title)
 {
     drawTopBar(title);
 
@@ -116,7 +116,7 @@ static int isSystemUsingDebugKeyset(void)
 
     // Check OTP to see if this system is using the Debug keyset.
     // NOTE: Includes "Factory" as well.
-    uint8_t *const dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
+    uint8_t* const dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
     if (!dataBuffer)
         return ret;
 
@@ -132,7 +132,7 @@ static int isSystemUsingDebugKeyset(void)
 static void option_SetColdbootTitle(void)
 {
     typedef struct _coldbootTitleOptions_t {
-        const char *desc;
+        const char* desc;
         uint64_t tid;
     } coldbootTitleOptions_t;
 
@@ -191,7 +191,7 @@ static void option_SetColdbootTitle(void)
                 (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
             index += CHAR_SIZE_DRC_Y + 4;
 
-            gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x", 
+            gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x",
                 (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
@@ -913,8 +913,8 @@ static void option_SystemInformation(void)
         waitButtonInput();
         return;
     }
-    uint8_t *const otp = (uint8_t*)dataBuffer;
-    uint16_t *const seeprom = (uint16_t*)dataBuffer + 0x200;
+    uint8_t* const otp = (uint8_t*)dataBuffer;
+    uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
 
     int res = readOTP((void*)otp, 0x400);
     if (res < 0) {
@@ -970,7 +970,7 @@ static void option_SystemInformation(void)
     index += CHAR_SIZE_DRC_Y + 4;
 
     const unsigned int sataDevice_id = seeprom[0x2C];
-    static const char *const sataDevice_tbl[] = {
+    static const char* const sataDevice_tbl[] = {
         NULL, "Default", "No device", "ROM drive",
         "R drive", "MION", "SES", "GEN2-HDD",
         "GEN1-HDD",
@@ -987,12 +987,12 @@ static void option_SystemInformation(void)
     index += CHAR_SIZE_DRC_Y + 4;
 
     const unsigned int consoleType_id = seeprom[0x2D];
-    static const char *const consoleType_tbl[] = {
+    static const char* const consoleType_tbl[] = {
         NULL, "WUP", "CAT-R", "CAT-DEV",
         "EV board", "Kiosk", "OrchestraX", "WUIH",
         "WUIH_DEV", "CAT_DEV_WUIH",
     };
-    const char *consoleType = NULL;
+    const char* consoleType = NULL;
     if (consoleType_id < 10) {
         consoleType = consoleType_tbl[consoleType_id];
     }
@@ -1059,7 +1059,7 @@ static void option_SystemInformation(void)
 
         uint8_t reserved[47];   // [0x011]
     } version_bin_t;
-    version_bin_t *const version_bin = (version_bin_t*)((uint8_t*)dataBuffer + 0x600);
+    version_bin_t* const version_bin = (version_bin_t*)((uint8_t*)dataBuffer + 0x600);
     version_bin->ver_magic.u32 = 0;
 
     char path[] = "/vol/storage_mlc01/sys/title/00050010/10041x00/content/version.bin";

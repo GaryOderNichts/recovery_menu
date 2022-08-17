@@ -4,11 +4,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-static uint32_t *const TV_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x3500000);
+static uint32_t* const TV_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x3500000);
 #define TV_HEIGHT 720
 #define TV_STRIDE 1280
 
-static uint32_t *const DRC_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x38c0000);
+static uint32_t* const DRC_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x38c0000);
 #define DRC_HEIGHT 480
 #define DRC_STRIDE 896
 
@@ -22,10 +22,7 @@ static uint32_t font_color = 0xFFFFFFFF;
 // NOTE: Allocated using IOS_HeapAlloc().
 #include "font_bin.h"
 #include "minilzo/minilzo.h"
-static terminus_font *font = NULL;
-
-extern int lzo_res;
-int lzo_res;
+static terminus_font* font = NULL;
 
 int gfx_init_font(void)
 {
@@ -95,8 +92,13 @@ void gfx_draw_pixel(uint32_t x, uint32_t y, uint32_t col)
 
 void gfx_draw_rect_filled(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t col)
 {
+#ifdef DC_INIT
+    // both DC configurations use XRGB instead of RGBX
+    col >>= 8;
+#endif
+
     // DRC fill: normal scale
-    uint32_t *p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
+    uint32_t* p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
     uint32_t stride_diff = DRC_STRIDE - w;
 
     for (uint32_t hcnt = h; hcnt > 0; hcnt--) {
@@ -107,11 +109,11 @@ void gfx_draw_rect_filled(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32
     }
 
     // TV fill: 1.5x scale
-    p = TV_FRAMEBUFFER + ((uint32_t)(y * 1.5) * TV_STRIDE) + (uint32_t)(x * 1.5);
-    stride_diff = TV_STRIDE - (w * 1.5);
+    p = TV_FRAMEBUFFER + ((uint32_t)(y * 1.5f) * TV_STRIDE) + (uint32_t)(x * 1.5f);
+    stride_diff = TV_STRIDE - (w * 1.5f);
 
-    for (uint32_t hcnt = h * 1.5; hcnt > 0; hcnt--) {
-        for (uint32_t wcnt = w * 1.5; wcnt > 0; wcnt--) {
+    for (uint32_t hcnt = (h * 1.5f); hcnt > 0; hcnt--) {
+        for (uint32_t wcnt = (w * 1.5f); wcnt > 0; wcnt--) {
             *p++ = col;
         }
         p += stride_diff;
@@ -128,6 +130,11 @@ void gfx_draw_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t bord
 
 void gfx_set_font_color(uint32_t col)
 {
+#ifdef DC_INIT
+    // both DC configurations use XRGB instead of RGBX
+    col >>= 8;
+#endif
+
     font_color = col;
 }
 
@@ -146,7 +153,7 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
     c -= 32;
 
     // DRC blit: Terminus 8x16 bold
-    const uint8_t *charDRC = font->ter_u16b[(unsigned char)c];
+    const uint8_t* charDRC = font->ter_u16b[(unsigned char)c];
     uint32_t *p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
     unsigned int stride_diff = DRC_STRIDE - CHAR_SIZE_DRC_X;
 
@@ -162,8 +169,8 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
     }
 
     // TV blit: Terminus 12x24 bold
-    const uint16_t *charTV = font->ter_u24b[(unsigned char)c];
-    p = TV_FRAMEBUFFER + ((uint32_t)(y * 1.5) * TV_STRIDE) + (uint32_t)(x * 1.5);
+    const uint16_t* charTV = font->ter_u24b[(unsigned char)c];
+    p = TV_FRAMEBUFFER + ((uint32_t)(y * 1.5f) * TV_STRIDE) + (uint32_t)(x * 1.5f);
     stride_diff = TV_STRIDE - CHAR_SIZE_TV_X;
 
     for (uint32_t hcnt = CHAR_SIZE_TV_Y; hcnt > 0; hcnt--) {

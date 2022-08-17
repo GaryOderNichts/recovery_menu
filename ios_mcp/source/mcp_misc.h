@@ -38,6 +38,6 @@ typedef struct __attribute__((packed)) _MCPSysProdSettings {
 } MCPSysProdSettings;
 static_assert(sizeof(MCPSysProdSettings) == 0x46, "MCPSysProdSettings: different size than expected");
 
-int MCP_GetSysProdSettings(int handle, MCPSysProdSettings *out_sysProdSettings);
+int MCP_GetSysProdSettings(int handle, MCPSysProdSettings* out_sysProdSettings);
 
 #endif /* __RECOVERY_MENU_IOS_MCP_MCP_MISC_H__ */

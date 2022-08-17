@@ -3,7 +3,6 @@
 // Character encoding is ASCII.
 
 // NOTE: Only characters [32,128) are included due to size constraints.
-// TODO: Compress the fonts?
 
 #ifndef __TERMINUS_FONT_BIN_H__
 #define __TERMINUS_FONT_BIN_H__
@@ -21,7 +20,7 @@ typedef struct _terminus_font {
 
 // The following data is compressed using LZO1X and should be
 // decompressed using MiniLZO first. The decompressed data can
-// be decoded using the following struct.
+// be decoded using the terminus_font struct.
 static const unsigned char terminus_lzo1x[1674] = {
     0x12,0x00,0x2f,0x01,0x00,0x18,0xa0,0x00,0x5c,0x00,0x9b,0x01,0x66,0x66,0x66,0x2c,
     0x7d,0x00,0x36,0x01,0x00,0x7f,0x89,0x00,0x36,0x98,0x01,0x0a,0x08,0x08,0x3e,0x6b,
