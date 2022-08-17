@@ -262,7 +262,6 @@ static void option_SetColdbootTitle(void)
 
     int rval;
     uint64_t newtid = 0;
-    int menu_flags = MenuFlag_ShowTID | MenuFlag_NoClearScreen;
 
     gfx_clear(COLOR_BACKGROUND);
     while (1) {
@@ -270,16 +269,23 @@ static void option_SetColdbootTitle(void)
         gfx_set_font_color(COLOR_PRIMARY);
 
         // draw current titles
+        gfx_draw_rect_filled(16 - 1, index - 1,
+            (CHAR_SIZE_DRC_X * (28+8+8)) + 2, CHAR_SIZE_DRC_Y + 2,
+            COLOR_BACKGROUND);
         gfx_printf(16, index, 0, "Current coldboot title:    %08x-%08x",
             (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
         index += CHAR_SIZE_DRC_Y + 4;
 
+        gfx_draw_rect_filled(16 - 1, index - 1,
+            (CHAR_SIZE_DRC_X * (28+8+8)) + 2, CHAR_SIZE_DRC_Y + 2,
+            COLOR_BACKGROUND);
         gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x",
             (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
         index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
         int selected = drawMenu("Set Coldboot Title",
-            coldbootTitleOptions, option_count, menu_flags, 16, index);
+            coldbootTitleOptions, option_count,
+            MenuFlag_ShowTID | MenuFlag_NoClearScreen, 16, index);
         index += (CHAR_SIZE_DRC_Y + 4) * option_count;
 
         newtid = coldbootTitleOptions[selected].tid;
@@ -288,14 +294,12 @@ static void option_SetColdbootTitle(void)
 
         // set the new default title ID
         rval = setDefaultTitleId(newtid);
-        // don't clear the screen on the next menu draw
-        menu_flags |= MenuFlag_NoClearScreen;
 
         if (newtid) {
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
             gfx_draw_rect_filled(16 - 1, index - 1,
-                (CHAR_SIZE_DRC_X * (38+8+8+3)) + 2, CHAR_SIZE_DRC_Y + 2,
+                (CHAR_SIZE_DRC_X * (37+8+8+3)) + 2, CHAR_SIZE_DRC_Y + 2,
                 COLOR_BACKGROUND);
             gfx_set_font_color(COLOR_PRIMARY);
             gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
@@ -303,7 +307,7 @@ static void option_SetColdbootTitle(void)
             index += CHAR_SIZE_DRC_Y + 4;
 
             gfx_draw_rect_filled(16 - 1, index - 1,
-                (CHAR_SIZE_DRC_X * 47) + 2, CHAR_SIZE_DRC_Y + 2,
+                (CHAR_SIZE_DRC_X * 46) + 2, CHAR_SIZE_DRC_Y + 2,
                 COLOR_BACKGROUND);
             if (rval < 0) {
                 gfx_set_font_color(COLOR_ERROR);
