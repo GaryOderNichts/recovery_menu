@@ -74,16 +74,16 @@ typedef struct Menu {
 } Menu;
 
 static const Menu mainMenuOptions[] = {
-    { "Set Coldboot Title", { option_SetColdbootTitle } },
-    { "Dump Syslogs", { option_DumpSyslogs } },
-    { "Dump OTP + SEEPROM", { option_DumpOtpAndSeeprom } },
-    { "Start wupserver", { option_StartWupserver } },
-    { "Load Network Configuration", { option_LoadNetConf } },
-    { "Display DRC Pin", { option_displayDRCPin } },
-    { "Install WUP", { option_InstallWUP } },
-    { "Edit Parental Controls", { option_EditParental } },
-    { "System Information", { option_SystemInformation } },
-    { "Shutdown", { option_Shutdown } },
+    {"Set Coldboot Title",          {.callback = option_SetColdbootTitle}},
+    {"Dump Syslogs",                {.callback = option_DumpSyslogs}},
+    {"Dump OTP + SEEPROM",          {.callback = option_DumpOtpAndSeeprom}},
+    {"Start wupserver",             {.callback = option_StartWupserver}},
+    {"Load Network Configuration",  {.callback = option_LoadNetConf}},
+    {"Display DRC Pin",             {.callback = option_displayDRCPin}},
+    {"Install WUP",                 {.callback = option_InstallWUP}},
+    {"Edit Parental Controls",      {.callback = option_EditParental}},
+    {"System Information",          {.callback = option_SystemInformation}},
+    {"Shutdown",                    {.callback = option_Shutdown}},
 };
 
 static void drawTopBar(const char* title)
@@ -104,16 +104,22 @@ static void drawBars(const char* title)
     gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
 }
 
+typedef enum {
+    MenuFlag_ShowTID        = (1U << 0),
+    MenuFlag_NoClearScreen  = (1U << 1),
+} MenuFlags;
+
 /**
  * Draw a menu and wait for the user to select an option.
  * @param title Menu title
  * @param menu Array of menu entries
  * @param count Number of menu entries
+ * @param flags
  * @param x
  * @param y
  * @return Selected menu entry index.
  */
-static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t x, uint32_t y)
+static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t flags, uint32_t x, uint32_t y)
 {
     int redraw = 1;
     int selected = 0;
@@ -135,18 +141,43 @@ static int drawMenu(const char* title, const Menu *menu, size_t count, uint32_t 
         }
 
         if (redraw) {
-            gfx_clear(COLOR_BACKGROUND);
+            if (!(flags & MenuFlag_NoClearScreen)) {
+                gfx_clear(COLOR_BACKGROUND);
+            }
 
             int index = y;
-            for (int i = 0; i < count; i++) {
-                gfx_draw_rect_filled(x - 1, index - 1,
-                    gfx_get_text_width(menu[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
-                    selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
+            if (!(flags & MenuFlag_ShowTID)) {
+                for (int i = 0; i < count; i++) {
+                    gfx_draw_rect_filled(x - 1, index - 1,
+                        gfx_get_text_width(menu[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
+                        selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
 
-                gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                gfx_printf(x, index, 0, menu[i].name);
+                    gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
+                    gfx_print(x, index, 0, menu[i].name);
 
-                index += CHAR_SIZE_DRC_Y + 4;
+                    index += CHAR_SIZE_DRC_Y + 4;
+                }
+            } else {
+                for (int i = 0; i < count; i++) {
+                    const char *text;
+                    char buf[64];
+                    if (menu[i].tid != 0) {
+                        snprintf(buf, sizeof(buf), "%s - %08lx-%08lx",
+                            menu[i].name, (uint32_t)(menu[i].tid >> 32), (uint32_t)(menu[i].tid & 0xFFFFFFFF));
+                        text = buf;
+                    } else {
+                        text = menu[i].name;
+                    }
+
+                    gfx_draw_rect_filled(x - 1, index - 1,
+                        gfx_get_text_width(text) + 2, CHAR_SIZE_DRC_Y + 2,
+                        selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
+
+                    gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
+                    gfx_print(x, index, 0, text);
+
+                    index += CHAR_SIZE_DRC_Y + 4;
+                }
             }
 
             gfx_set_font_color(COLOR_PRIMARY);
@@ -198,21 +229,16 @@ static int isSystemUsingDebugKeyset(void)
 
 static void option_SetColdbootTitle(void)
 {
-    typedef struct _coldbootTitleOptions_t {
-        const char* desc;
-        uint64_t tid;
-    } coldbootTitleOptions_t;
-
-    static const coldbootTitleOptions_t coldbootTitleOptions[] = {
-        {"Back", 0},
-        {"Wii U Menu (JPN)", 0x0005001010040000},
-        {"Wii U Menu (USA)", 0x0005001010040100},
-        {"Wii U Menu (EUR)", 0x0005001010040200},
+    static const Menu coldbootTitleOptions[] = {
+        {"Back", {0} },
+        {"Wii U Menu (JPN)", {.tid = 0x0005001010040000}},
+        {"Wii U Menu (USA)", {.tid = 0x0005001010040100}},
+        {"Wii U Menu (EUR)", {.tid = 0x0005001010040200}},
 
         // non-retail systems only
-        {"System Config Tool", 0x000500101F700500},
-        {"DEVMENU (pre-2.09)", 0x000500101F7001FF},
-        {"Kiosk Menu        ", 0x000500101FA81000},
+        {"System Config Tool", {.tid = 0x000500101F700500}},
+        {"DEVMENU (pre-2.09)", {.tid = 0x000500101F7001FF}},
+        {"Kiosk Menu        ", {.tid = 0x000500101FA81000}},
     };
 
     // Only print the non-retail options if the keyset is debug.
@@ -220,89 +246,48 @@ static void option_SetColdbootTitle(void)
 
     int rval;
     uint64_t newtid = 0;
+    int menu_flags = MenuFlag_ShowTID | MenuFlag_NoClearScreen;
 
-    int redraw = 1;
-    int selected = 0;
-
-    uint8_t cur_flag = 0;
-    uint8_t flag = 0;
+    gfx_clear(COLOR_BACKGROUND);
     while (1) {
-        readSystemEventFlag(&flag);
-        if (cur_flag != flag) {
-            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
-                selected++;
+        uint32_t index = 16 + 8 + 2 + 8;
+        gfx_set_font_color(COLOR_PRIMARY);
 
-                if (selected == option_count) {
-                    selected = 0;
-                }
+        // draw current titles
+        gfx_printf(16, index, 0, "Current coldboot title:    %08x-%08x",
+            (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
+        index += CHAR_SIZE_DRC_Y + 4;
 
-                redraw = 1;
-            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
-                newtid = coldbootTitleOptions[selected].tid;
-                if (newtid == 0)
-                    return;
+        gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x",
+            (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
+        index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
-                rval = setDefaultTitleId(newtid);
-                redraw = 1;
-            }
+        int selected = drawMenu("Set Coldboot Title",
+            coldbootTitleOptions, option_count, menu_flags, 16, index);
+        index += (CHAR_SIZE_DRC_Y + 4) * option_count;
 
-            cur_flag = flag;
-        }
+        newtid = coldbootTitleOptions[selected].tid;
+        if (newtid == 0)
+            return;
 
-        if (redraw) {
-            gfx_clear(COLOR_BACKGROUND);
-            uint32_t index = 16 + 8 + 2 + 8;
+        // set the new default title ID
+        rval = setDefaultTitleId(newtid);
+        // don't clear the screen on the next menu draw
+        menu_flags |= MenuFlag_NoClearScreen;
 
-            // draw current titles
-            gfx_printf(16, index, 0, "Current coldboot title:    %08x-%08x",
-                (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
-            index += CHAR_SIZE_DRC_Y + 4;
-
-            gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x",
-                (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
+        if (newtid) {
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
-
-            // draw options
-            for (int i = 0; i < option_count; i++) {
-                char buf[64];
-                if (coldbootTitleOptions[i].tid != 0) {
-                    // Append the title ID in hi-lo format.
-                    snprintf(buf, sizeof(buf), "%s - %08lx-%08lx", coldbootTitleOptions[i].desc,
-                        (uint32_t)(coldbootTitleOptions[i].tid >> 32),
-                        (uint32_t)(coldbootTitleOptions[i].tid & 0xFFFFFFFFU));
-                } else {
-                    // No title ID. Use the option by itself.
-                    snprintf(buf, sizeof(buf), "%s", coldbootTitleOptions[i].desc);
-                }
-
-                gfx_draw_rect_filled(16 - 1, index - 1,
-                    gfx_get_text_width(buf) + 2, CHAR_SIZE_DRC_Y + 2,
-                    selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-                gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                gfx_printf(16, index, 0, buf);
-
-                index += CHAR_SIZE_DRC_Y + 4;
-            }
-
             gfx_set_font_color(COLOR_PRIMARY);
-
-            if (newtid) {
-                index += (CHAR_SIZE_DRC_Y + 4) * 2;
-                gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
-                    (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
-                index += CHAR_SIZE_DRC_Y + 4;
-                if (rval < 0) {
-                    gfx_set_font_color(COLOR_ERROR);
-                    gfx_printf(16, index, 0, "Error! Make sure title is installed correctly.");
-                } else {
-                    gfx_set_font_color(COLOR_SUCCESS);
-                    gfx_printf(16, index, 0, "Success!");
-                }
+            gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
+                (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
+            index += CHAR_SIZE_DRC_Y + 4;
+            if (rval < 0) {
+                gfx_set_font_color(COLOR_ERROR);
+                gfx_printf(16, index, 0, "Error! Make sure title is installed correctly.");
+            } else {
+                gfx_set_font_color(COLOR_SUCCESS);
+                gfx_printf(16, index, 0, "Success!");
             }
-
-            drawBars("Set Coldboot Title");
-            redraw = 0;
         }
     }
 }
@@ -1218,7 +1203,7 @@ int menuThread(void* arg)
 
     while (1) {
         int selected = drawMenu("Wii U Recovery Menu v0.2 by GaryOderNichts",
-            mainMenuOptions, ARRAY_SIZE(mainMenuOptions), 16, 16+8+2+8);
+            mainMenuOptions, ARRAY_SIZE(mainMenuOptions), 0, 16, 16+8+2+8);
         if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {
             mainMenuOptions[selected].callback();
         }
