@@ -499,7 +499,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
 {
     if (strncmp(key, "type", sizeof("type")) == 0) {
         gfx_printf(16, *console_idx, 0, "Type: %s", value);
-        (*console_idx) += 8 + 4;
+        (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
             if (strncmp(value, "wifi", sizeof("wifi")) == 0) {
@@ -516,7 +516,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
         }
     } else if (strncmp(key, "ssid", sizeof("ssid")) == 0) {
         gfx_printf(16, *console_idx, 0, "SSID: %s (%d)", value, value_len);
-        (*console_idx) += 8 + 4;
+        (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
             memcpy(cfg->wifi.config.ssid, value, value_len);
@@ -524,7 +524,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
         }
     } else if (strncmp(key, "key", sizeof("key")) == 0) {
         gfx_printf(16, *console_idx, 0, "Key: ******* (%d)", value_len);
-        (*console_idx) += 8 + 4;
+        (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
             memcpy(cfg->wifi.config.privacy.aes_key, value, value_len);
@@ -532,7 +532,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
         }
     } else if (strncmp(key, "key_type", sizeof("key_type")) == 0) {
         gfx_printf(16, *console_idx, 0, "Key type: %s", value);
-        (*console_idx) += 8 + 4;
+        (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
             if (strncmp(value, "NONE", sizeof("NONE")) == 0) {
@@ -549,7 +549,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
                 cfg->wifi.config.privacy.mode = NET_CFG_WIFI_PRIVACY_MODE_WPA_PSK_AES;
             } else {
                 gfx_printf(16, *console_idx, 0, "Unknown key type!");
-                (*console_idx) += 8 + 4;
+                (*console_idx) += CHAR_SIZE_DRC_Y + 4;
             }
         }
     }
