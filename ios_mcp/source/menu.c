@@ -904,7 +904,8 @@ static void option_SystemInformation(void)
     // parse OTP/SEEPROM for system information
     // 0x000-0x3FF: OTP
     // 0x400-0x5FF: SEEPROM
-    void *dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x600, 0x40);
+    // 0x600-0x7FF: misc for version.bin
+    void *dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x800, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Out of memory!");
@@ -985,6 +986,48 @@ static void option_SystemInformation(void)
     gfx_printf(16, index, 0, "consoleType: %u %s", consoleType_id, consoleType ? consoleType : "");
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
+
+    // Wii U Menu version
+    // FIXME: CAT-I has all three region versions installed.
+    // Need to get the actual productArea from sys_prod.xml.
+    typedef struct _version_bin_t {
+        char ver_magic[4];  // [0x000] "VER\0"
+        uint32_t major;     // [0x004] Major version
+        uint32_t minor;     // [0x008] Minor version
+        uint32_t revision;  // [0x00C] Revision
+        char region;        // [0x010] Region character: 'J', 'U', 'E'
+
+        uint8_t reserved[47];   // [0x011]
+    } version_bin_t;
+    version_bin_t *const version_bin = (version_bin_t*)((uint8_t*)dataBuffer + 0x600);
+    version_bin->ver_magic[0] = '\0';
+
+    char path[] = "/vol/storage_mlc01/sys/title/00050010/10041000/content/version.bin";
+    for (unsigned int region = '0'; region < '3'; region++) {
+        path[43] = region;
+
+        int verHandle;
+        int res = FSA_OpenFile(fsaHandle, path, "r", &verHandle);
+        if (res < 0)
+            continue;
+
+        // version.bin should always be 64 bytes.
+        res = FSA_ReadFile(fsaHandle, version_bin, 1, sizeof(*version_bin), verHandle, 0);
+        FSA_CloseFile(fsaHandle, verHandle);
+        if (res == sizeof(*version_bin))
+            break;
+
+        // Not found.
+        version_bin->ver_magic[0] = '\0';
+    }
+
+    // Did we find a valid version.bin?
+    if (!strncmp(version_bin->ver_magic, "VER", 4)) {
+        // Found a valid version.bin.
+        gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u%c",
+            version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
 
     // TODO: productArea, gameRegion, IOSU version, Wii U Menu version
     // - productArea is set to 2 on my CAT-I that's actually set to USA.
