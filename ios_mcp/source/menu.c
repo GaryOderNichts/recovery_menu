@@ -1131,18 +1131,16 @@ int menuThread(void* arg)
     //readDCConfig(&dc_config);
 #endif
 
+    // initialize the font
+    if (gfx_init_font() != 0) {
+        // failed to initialize font
+        // can't do anything without a font, so shut down
+        IOS_Shutdown(0);
+    }
+        
     // open fsa and mount sdcard
     fsaHandle = IOS_Open("/dev/fsa", 0);
     if (fsaHandle > 0) {
-        // initialize the font
-        if (gfx_init_font() != 0) {
-            // failed to initialize font
-            // can't do anything without a font, so shut down
-            FSA_FlushVolume(fsaHandle, "/vol/storage_mlc01");
-            IOS_Close(fsaHandle);
-            IOS_Shutdown(0);
-        }
-
         int res = FSA_Mount(fsaHandle, "/dev/sdcard01", "/vol/storage_recovsd", 2, NULL, 0);
         if (res < 0) {
             printf("Failed to mount SD: %x\n", res);
