@@ -1075,7 +1075,7 @@ static void option_SystemInformation(void)
             // Did we find a valid version.bin?
             if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
                 // Found a valid version.bin.
-                gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u%c",
+                gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u %c",
                     version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
                 index += CHAR_SIZE_DRC_Y + 4;
             }
