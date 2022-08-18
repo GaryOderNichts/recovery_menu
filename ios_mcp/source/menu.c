@@ -1041,6 +1041,7 @@ static void option_FixRegionBrick(void)
     int menu_matches_region = 0;
     int menu_is_in_gameRegion = 0;
     int menu_productArea_id = -1;
+    int menu_count = 0;
     int fileHandle;
 
     path[43] = productArea_id + '0';
@@ -1048,6 +1049,7 @@ static void option_FixRegionBrick(void)
     if (res >= 0) {
         menu_matches_region = 1;
         menu_productArea_id = productArea_id;
+        menu_count = 1; // TODO: Check for others anyway?
         FSA_CloseFile(fsaHandle, fileHandle);
     }
 
@@ -1060,9 +1062,9 @@ static void option_FixRegionBrick(void)
             path[43] = '0' + i;
             res = FSA_OpenFile(fsaHandle, path, "r", &fileHandle);
             if (res >= 0) {
+                menu_count++;
                 menu_productArea_id = i;
                 FSA_CloseFile(fsaHandle, fileHandle);
-                break;
             }
         }
     }
@@ -1071,8 +1073,16 @@ static void option_FixRegionBrick(void)
     menu_is_in_gameRegion = (gameRegion & (1U << menu_productArea_id));
 
     gfx_print(16, index, 0, "Installed Wii U Menu: ");
-    const char* const menu_region_str = (menu_productArea_id >= 0) ? region_tbl[menu_productArea_id] : "NONE";
-    if (menu_matches_region && menu_is_in_gameRegion) {
+    const char* menu_region_str;
+    if (menu_count == 0 || menu_productArea_id < 0) {
+        menu_region_str = "NONE";
+    } else if (menu_count > 1) {
+        menu_region_str = "MANY";
+    } else {
+        menu_region_str = region_tbl[menu_productArea_id];
+    }
+
+    if (menu_matches_region && menu_is_in_gameRegion && menu_count == 1) {
         // Matching menu found.
         gfx_set_font_color(COLOR_SUCCESS);
     } else {
@@ -1089,8 +1099,12 @@ static void option_FixRegionBrick(void)
     }
 
     // Show the errors.
-    if (menu_productArea_id < 0) {
+    if (menu_count == 0 || menu_productArea_id < 0) {
         gfx_print(16, index, 0, "Could not find a Wii U Menu title installed on this system.");
+        waitButtonInput();
+        return;
+    } else if (menu_count > 1) {
+        gfx_print(16, index, 0, "Multiple Wii U Menus were found. Someone dun goofed...");
         waitButtonInput();
         return;
     }
