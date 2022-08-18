@@ -103,7 +103,7 @@ static void drawBars(const char* title)
     // draw bottom bar
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
     gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
-    gfx_print(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
+    gfx_print(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, GfxPrintFlag_AlignRight, "POWER: Choose");
 }
 
 typedef enum {
@@ -215,7 +215,7 @@ static void waitButtonInput(void)
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
 
     gfx_draw_rect_filled(16 - 1, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4,
-        854 - 16, CHAR_SIZE_DRC_Y + 2,
+        SCREEN_WIDTH - 16, CHAR_SIZE_DRC_Y + 2,
         COLOR_BACKGROUND);
     gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "Press EJECT or POWER to proceed...");
 
@@ -280,17 +280,11 @@ static void option_SetColdbootTitle(void)
         gfx_set_font_color(COLOR_PRIMARY);
 
         // draw current titles
-        gfx_draw_rect_filled(16 - 1, index - 1,
-            (CHAR_SIZE_DRC_X * (28+8+8)) + 2, CHAR_SIZE_DRC_Y + 2,
-            COLOR_BACKGROUND);
-        gfx_printf(16, index, 0, "Current coldboot title:    %08lx-%08lx",
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Current coldboot title:    %08lx-%08lx",
             (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
         index += CHAR_SIZE_DRC_Y + 4;
 
-        gfx_draw_rect_filled(16 - 1, index - 1,
-            (CHAR_SIZE_DRC_X * (28+8+8)) + 2, CHAR_SIZE_DRC_Y + 2,
-            COLOR_BACKGROUND);
-        gfx_printf(16, index, 0, "Current coldboot os:       %08lx-%08lx",
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Current coldboot os:       %08lx-%08lx",
             (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
         index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
@@ -309,23 +303,18 @@ static void option_SetColdbootTitle(void)
         if (newtid) {
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
-            gfx_draw_rect_filled(16 - 1, index - 1,
-                (CHAR_SIZE_DRC_X * (37+8+8+11)) + 2, CHAR_SIZE_DRC_Y + 2,
-                COLOR_BACKGROUND);
             gfx_set_font_color(COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Setting coldboot title id to %08lx-%08lx, rval %d",
+            gfx_printf(16, index, GfxPrintFlag_ClearBG,
+                "Setting coldboot title id to %08lx-%08lx, rval %d  ",
                 (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
             index += CHAR_SIZE_DRC_Y + 4;
 
-            gfx_draw_rect_filled(16 - 1, index - 1,
-                (CHAR_SIZE_DRC_X * 46) + 2, CHAR_SIZE_DRC_Y + 2,
-                COLOR_BACKGROUND);
             if (rval < 0) {
                 gfx_set_font_color(COLOR_ERROR);
-                gfx_print(16, index, 0, "Error! Make sure title is installed correctly.");
+                gfx_print(16, index, GfxPrintFlag_ClearBG, "Error! Make sure title is installed correctly.");
             } else {
                 gfx_set_font_color(COLOR_SUCCESS);
-                gfx_print(16, index, 0, "Success!");
+                gfx_print(16, index, GfxPrintFlag_ClearBG, "Success!                                      ");
             }
         }
     }
@@ -899,31 +888,26 @@ static void option_EditParental(void)
         gfx_set_font_color(COLOR_PRIMARY);
 
         // draw current parental control info
-        gfx_draw_rect_filled(16 - 1, index - 1,
-            (CHAR_SIZE_DRC_X * (29+11)) + 2, CHAR_SIZE_DRC_Y + 2,
-            COLOR_BACKGROUND);
         uint8_t enabled = 0;
         int res = SCIGetParentalEnable(&enabled);
         if (res == 1) {
             gfx_set_font_color(COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Parental Controls: %s", enabled ? "Enabled" : "Disabled");
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Parental Controls: %s ",
+                enabled ? "Enabled" : "Disabled");
         } else {
             gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, 0, "SCIGetParentalEnable failed: %d", res);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalEnable failed: %d  ", res);
         }
         index += CHAR_SIZE_DRC_Y + 4;
 
-        gfx_draw_rect_filled(16 - 1, index - 1,
-            (CHAR_SIZE_DRC_X * (30+3)) + 2, CHAR_SIZE_DRC_Y + 2,
-            COLOR_BACKGROUND);
         char pin[5] = "";
         res = SCIGetParentalPinCode(pin, sizeof(pin));
         if (res == 1) {
             gfx_set_font_color(COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Parental Pin Code: %s", pin);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Parental Pin Code: %s", pin);
         } else {
             gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, 0, "SCIGetParentalPinCode failed: %d", res);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalPinCode failed: %d  ", res);
         }
         index += (CHAR_SIZE_DRC_Y + 4) * 2;
 

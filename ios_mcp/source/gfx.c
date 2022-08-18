@@ -185,10 +185,13 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
     }
 }
 
-void gfx_print(uint32_t x, uint32_t y, int alignRight, const char* string)
+void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* string)
 {
-    if (alignRight) {
+    if (gfxPrintFlags & GfxPrintFlag_AlignRight) {
         x -= gfx_get_text_width(string);
+    }
+    if (gfxPrintFlags & GfxPrintFlag_ClearBG) {
+        gfx_draw_rect_filled(x, y, CHAR_SIZE_DRC_X * gfx_get_text_width(string), CHAR_SIZE_DRC_Y, 0);
     }
 
     for (; *string != '\0'; string++, x += CHAR_SIZE_DRC_X) {
@@ -199,7 +202,7 @@ void gfx_print(uint32_t x, uint32_t y, int alignRight, const char* string)
     }
 }
 
-void gfx_printf(uint32_t x, uint32_t y, int alignRight, const char* format, ...)
+void gfx_printf(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -207,7 +210,7 @@ void gfx_printf(uint32_t x, uint32_t y, int alignRight, const char* format, ...)
     char buffer[0x100];
 
     vsnprintf(buffer, sizeof(buffer), format, args);
-    gfx_print(x, y, alignRight, buffer);
+    gfx_print(x, y, gfxPrintFlags, buffer);
 
     va_end(args);
 }
