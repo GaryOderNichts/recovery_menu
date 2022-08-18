@@ -92,7 +92,7 @@ static void drawTopBar(const char* title)
 {
     // draw top bar
     gfx_set_font_color(COLOR_PRIMARY);
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
+    gfx_print((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
     gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
 }
 
@@ -102,8 +102,8 @@ static void drawBars(const char* title)
 
     // draw bottom bar
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
-    gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
+    gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
+    gfx_print(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
 }
 
 typedef enum {
@@ -217,7 +217,7 @@ static void waitButtonInput(void)
     gfx_draw_rect_filled(16 - 1, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4,
         854 - 16, CHAR_SIZE_DRC_Y + 2,
         COLOR_BACKGROUND);
-    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "Press EJECT or POWER to proceed...");
+    gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "Press EJECT or POWER to proceed...");
 
     uint8_t cur_flag = 0;
     uint8_t flag = 0;
@@ -322,10 +322,10 @@ static void option_SetColdbootTitle(void)
                 COLOR_BACKGROUND);
             if (rval < 0) {
                 gfx_set_font_color(COLOR_ERROR);
-                gfx_printf(16, index, 0, "Error! Make sure title is installed correctly.");
+                gfx_print(16, index, 0, "Error! Make sure title is installed correctly.");
             } else {
                 gfx_set_font_color(COLOR_SUCCESS);
-                gfx_printf(16, index, 0, "Success!");
+                gfx_print(16, index, 0, "Success!");
             }
         }
     }
@@ -338,7 +338,7 @@ static void option_DumpSyslogs(void)
     drawTopBar("Dumping Syslogs...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Creating 'logs' directory...");
+    gfx_print(16, index, 0, "Creating 'logs' directory...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int res = FSA_MakeDir(fsaHandle, "/vol/storage_recovsd/logs", 0x600);
@@ -349,7 +349,7 @@ static void option_DumpSyslogs(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Opening system 'logs' directory...");
+    gfx_print(16, index, 0, "Opening system 'logs' directory...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int dir_handle;
@@ -389,7 +389,7 @@ static void option_DumpSyslogs(void)
 
     index += CHAR_SIZE_DRC_Y + 4;
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     waitButtonInput();
 
     FSA_CloseDir(fsaHandle, dir_handle);
@@ -401,13 +401,13 @@ static void option_DumpOtpAndSeeprom(void)
     drawTopBar("Dumping OTP + SEEPROM...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Creating otp.bin...");
+    gfx_print(16, index, 0, "Creating otp.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     void* dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Out of memory!");
+        gfx_print(16, index, 0, "Out of memory!");
         waitButtonInput();
         return;
     }
@@ -423,7 +423,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Reading OTP...");
+    gfx_print(16, index, 0, "Reading OTP...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = readOTP(dataBuffer, 0x400);
@@ -437,7 +437,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Writing otp.bin...");
+    gfx_print(16, index, 0, "Writing otp.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x400, otpHandle, 0);
@@ -453,7 +453,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     FSA_CloseFile(fsaHandle, otpHandle);
 
-    gfx_printf(16, index, 0, "Creating seeprom.bin...");
+    gfx_print(16, index, 0, "Creating seeprom.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int seepromHandle;
@@ -467,7 +467,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Reading SEEPROM...");
+    gfx_print(16, index, 0, "Reading SEEPROM...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = EEPROM_Read(0, 0x100, (uint16_t*) dataBuffer);
@@ -481,7 +481,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Writing seeprom.bin...");
+    gfx_print(16, index, 0, "Writing seeprom.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x200, seepromHandle, 0);
@@ -496,7 +496,7 @@ static void option_DumpOtpAndSeeprom(void)
     }
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     waitButtonInput();
 
     FSA_CloseFile(fsaHandle, seepromHandle);
@@ -509,7 +509,7 @@ static void option_StartWupserver(void)
     drawTopBar("Running wupserver...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Initializing netconf...");
+    gfx_print(16, index, 0, "Initializing netconf...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int res = netconf_init();
@@ -520,7 +520,7 @@ static void option_StartWupserver(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Waiting for network connection... 5s");
+    gfx_printf(16, index, 0, "Waiting for network connection... %ds", 5);
 
     NetConfInterfaceTypeEnum interface = 0xff;
     for (int i = 0; i < 5; i++) {
@@ -543,7 +543,7 @@ static void option_StartWupserver(void)
 
     if (interface == 0xff) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "No network connection!");
+        gfx_print(16, index, 0, "No network connection!");
         waitButtonInput();
         return;
     }
@@ -575,13 +575,13 @@ static void option_StartWupserver(void)
     wupserver_init();
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Wupserver running. Press EJECT or POWER to stop.");
+    gfx_print(16, index, 0, "Wupserver running. Press EJECT or POWER to stop.");
     index += CHAR_SIZE_DRC_Y + 4;
 
     waitButtonInput();
 
     gfx_set_font_color(COLOR_PRIMARY);
-    gfx_printf(16, index, 0, "Stopping wupserver...");
+    gfx_print(16, index, 0, "Stopping wupserver...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     wupserver_deinit();
@@ -640,7 +640,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
             } else if (strncmp(value, "WPA_PSK_AES", sizeof("WPA_PSK_AES")) == 0) {
                 cfg->wifi.config.privacy.mode = NET_CFG_WIFI_PRIVACY_MODE_WPA_PSK_AES;
             } else {
-                gfx_printf(16, *console_idx, 0, "Unknown key type!");
+                gfx_print(16, *console_idx, 0, "Unknown key type!");
                 (*console_idx) += CHAR_SIZE_DRC_Y + 4;
             }
         }
@@ -653,7 +653,7 @@ static void option_LoadNetConf(void)
     drawTopBar("Loading network configuration...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Initializing netconf...");
+    gfx_print(16, index, 0, "Initializing netconf...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int res = netconf_init();
@@ -664,7 +664,7 @@ static void option_LoadNetConf(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Reading network.cfg...");
+    gfx_print(16, index, 0, "Reading network.cfg...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int cfgHandle;
@@ -690,7 +690,7 @@ static void option_LoadNetConf(void)
     char* cfgBuffer = (char*) IOS_HeapAllocAligned(0xcaff, stat.size + 1, 0x40);
     if (!cfgBuffer) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Out of memory!");
+        gfx_print(16, index, 0, "Out of memory!");
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, cfgHandle);
@@ -741,7 +741,7 @@ static void option_LoadNetConf(void)
         network_parse_config_value(&index, &cfg, keyPtr, valuePtr, (cfgBuffer + stat.size) - valuePtr);
     }
 
-    gfx_printf(16, index, 0, "Applying configuration...");
+    gfx_print(16, index, 0, "Applying configuration...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = netconf_set_running(&cfg);
@@ -756,7 +756,7 @@ static void option_LoadNetConf(void)
     }
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     index += CHAR_SIZE_DRC_Y + 4;
 
     waitButtonInput();
@@ -771,7 +771,7 @@ static void option_displayDRCPin(void)
     drawTopBar("Display DRC Pin");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Reading DRH mac address...");
+    gfx_print(16, index, 0, "Reading DRH mac address...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int ccrHandle = IOS_Open("/dev/ccr_cdc", 0);
@@ -816,7 +816,7 @@ static void option_InstallWUP(void)
     drawTopBar("Installing WUP");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
+    gfx_print(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int mcpHandle = IOS_Open("/dev/mcp", 0);
@@ -827,7 +827,7 @@ static void option_InstallWUP(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Querying install info...");
+    gfx_print(16, index, 0, "Querying install info...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     MCPInstallInfo info;
@@ -876,7 +876,7 @@ static void option_InstallWUP(void)
     }
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     waitButtonInput();
 
     IOS_Close(mcpHandle);
@@ -950,10 +950,10 @@ static void option_EditParental(void)
             COLOR_BACKGROUND);
         if (rval != 1) {
             gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, 0, "Error!");
+            gfx_print(16, index, 0, "Error!");
         } else {
             gfx_set_font_color(COLOR_SUCCESS);
-            gfx_printf(16, index, 0, "Success!");
+            gfx_print(16, index, 0, "Success!");
         }
         index += CHAR_SIZE_DRC_Y + 4;
     }
@@ -1191,7 +1191,7 @@ static void option_SystemInformation(void)
     void *dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x800, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Out of memory!");
+        gfx_print(16, index, 0, "Out of memory!");
         waitButtonInput();
         return;
     }
