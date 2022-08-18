@@ -1119,6 +1119,42 @@ static void option_FixRegionBrick(void)
         MenuFlag_NoClearScreen, 16, index);
     if (selected == 0)
         return;
+    index += (CHAR_SIZE_DRC_Y*3) + 4;
+
+    // Attempt to set the region code.
+    int mcpHandle = IOS_Open("/dev/mcp", 0);
+    if (mcpHandle < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "IOS_Open(\"/dev/mcp\") failed: %x", mcpHandle);
+        waitButtonInput();
+        return;
+    }
+
+    MCPSysProdSettings sysProdSettings;
+    res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
+    if (res < 0) {
+        IOS_Close(mcpHandle);
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "MCP_GetSysProdSettings() failed: %x", res);
+        waitButtonInput();
+        return;
+    }
+
+    // Set both productArea and gameRegion to the Wii U Menu's region value.
+    // NOTE: productArea_id is a bit index, so it needs to be shifted into place.
+    sysProdSettings.product_area = (1U << menu_productArea_id);
+    sysProdSettings.game_region = (1U << menu_productArea_id);
+    res = MCP_SetSysProdSettings(mcpHandle, &sysProdSettings);
+    IOS_Close(mcpHandle);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "MCP_SetSysProdSettings() failed: %x", res);
+    } else {
+        gfx_set_font_color(COLOR_SUCCESS);
+        gfx_printf(16, index, 0, "System region set to %s successfully.", menu_region_str);
+        waitButtonInput();
+        return;
+    }
 
     waitButtonInput();
 }
