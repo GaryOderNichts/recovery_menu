@@ -913,21 +913,15 @@ static void option_EditParental(void)
         // Option 1: Disable the parental controls.
         rval = SCISetParentalEnable(0);
 
-        gfx_draw_rect_filled(16 - 1, index - 1,
-            (CHAR_SIZE_DRC_X * (29+11)) + 2, CHAR_SIZE_DRC_Y + 2,
-            COLOR_BACKGROUND);
-        gfx_printf(16, index, 0, "SCISetParentalEnable(false): %d", rval);
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCISetParentalEnable(false): %d  ", rval);
         index += CHAR_SIZE_DRC_Y + 4;
 
-        gfx_draw_rect_filled(16 - 1, index - 1,
-            (CHAR_SIZE_DRC_X * 8) + 2, CHAR_SIZE_DRC_Y + 2,
-            COLOR_BACKGROUND);
         if (rval != 1) {
             gfx_set_font_color(COLOR_ERROR);
-            gfx_print(16, index, 0, "Error!");
+            gfx_print(16, index, GfxPrintFlag_ClearBG, "Error!  ");
         } else {
             gfx_set_font_color(COLOR_SUCCESS);
-            gfx_print(16, index, 0, "Success!");
+            gfx_print(16, index, GfxPrintFlag_ClearBG, "Success!");
         }
         index += CHAR_SIZE_DRC_Y + 4;
     }
