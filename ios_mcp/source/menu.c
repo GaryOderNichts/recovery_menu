@@ -283,14 +283,14 @@ static void option_SetColdbootTitle(void)
         gfx_draw_rect_filled(16 - 1, index - 1,
             (CHAR_SIZE_DRC_X * (28+8+8)) + 2, CHAR_SIZE_DRC_Y + 2,
             COLOR_BACKGROUND);
-        gfx_printf(16, index, 0, "Current coldboot title:    %08x-%08x",
+        gfx_printf(16, index, 0, "Current coldboot title:    %08lx-%08lx",
             (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
         index += CHAR_SIZE_DRC_Y + 4;
 
         gfx_draw_rect_filled(16 - 1, index - 1,
             (CHAR_SIZE_DRC_X * (28+8+8)) + 2, CHAR_SIZE_DRC_Y + 2,
             COLOR_BACKGROUND);
-        gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x",
+        gfx_printf(16, index, 0, "Current coldboot os:       %08lx-%08lx",
             (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
         index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
@@ -313,7 +313,7 @@ static void option_SetColdbootTitle(void)
                 (CHAR_SIZE_DRC_X * (37+8+8+11)) + 2, CHAR_SIZE_DRC_Y + 2,
                 COLOR_BACKGROUND);
             gfx_set_font_color(COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
+            gfx_printf(16, index, 0, "Setting coldboot title id to %08lx-%08lx, rval %d",
                 (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
             index += CHAR_SIZE_DRC_Y + 4;
 
@@ -607,7 +607,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
             }
         }
     } else if (strncmp(key, "ssid", sizeof("ssid")) == 0) {
-        gfx_printf(16, *console_idx, 0, "SSID: %s (%d)", value, value_len);
+        gfx_printf(16, *console_idx, 0, "SSID: %s (%lu)", value, value_len);
         (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
@@ -615,7 +615,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
             cfg->wifi.config.ssidlength = value_len;
         }
     } else if (strncmp(key, "key", sizeof("key")) == 0) {
-        gfx_printf(16, *console_idx, 0, "Key: ******* (%d)", value_len);
+        gfx_printf(16, *console_idx, 0, "Key: ******* (%lu)", value_len);
         (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
@@ -1338,7 +1338,7 @@ static void option_SystemInformation(void)
             // Did we find a valid version.bin?
             if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
                 // Found a valid version.bin.
-                gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u %c",
+                gfx_printf(16, index, 0, "Wii U Menu version: %lu.%lu.%lu %c",
                     version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
                 index += CHAR_SIZE_DRC_Y + 4;
             }

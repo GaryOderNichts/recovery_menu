@@ -27,4 +27,5 @@ uint32_t gfx_get_text_width(const char* string);
 
 void gfx_print(uint32_t x, uint32_t y, int alignRight, const char* string);
 
+__attribute__((format(printf, 4, 5)))
 void gfx_printf(uint32_t x, uint32_t y, int alignRight, const char* format, ...);
