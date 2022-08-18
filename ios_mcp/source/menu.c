@@ -213,6 +213,10 @@ static void waitButtonInput(void)
 {
     gfx_set_font_color(COLOR_PRIMARY);
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
+
+    gfx_draw_rect_filled(16 - 1, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4,
+        (CHAR_SIZE_DRC_X * 34) + 2, CHAR_SIZE_DRC_Y + 2,
+        COLOR_BACKGROUND);
     gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "Press EJECT or POWER to proceed...");
 
     uint8_t cur_flag = 0;
