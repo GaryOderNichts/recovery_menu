@@ -1084,11 +1084,11 @@ static void option_FixRegionBrick(void)
     }
 
     if (!menu_matches_region) {
-        gfx_print(16, index, 0, "The system region does not match the installed Wii U Menu.");
+        gfx_printf(16, index, 0, "The %s region does not match the installed Wii U Menu.", "system");
         index += CHAR_SIZE_DRC_Y + 4;
     }
     if (!menu_is_in_gameRegion) {
-        gfx_print(16, index, 0, "The game region does not match the installed Wii U Menu.");
+        gfx_printf(16, index, 0, "The %s region does not match the installed Wii U Menu.", "game");
         index += CHAR_SIZE_DRC_Y + 4;
     }
     index += CHAR_SIZE_DRC_Y + 4;
@@ -1097,19 +1097,16 @@ static void option_FixRegionBrick(void)
     gfx_printf(16, index, 0, "Repair the system by setting the region code to %s?", menu_region_str);
     index += CHAR_SIZE_DRC_Y + 4;
 
-    char menuItem[20];
-    snprintf(menuItem, sizeof(menuItem), "Set Region to %s", menu_region_str);
-
-    const Menu fixRegionBrickOptions[] = {
+    static const Menu fixRegionBrickOptions[] = {
         {"Cancel", {0} },
-        {menuItem, {0} },
+        {"Fix Region", {0} },
     };
     int selected = drawMenu("Fix Region Brick",
         fixRegionBrickOptions, ARRAY_SIZE(fixRegionBrickOptions), 0,
         MenuFlag_NoClearScreen, 16, index);
     if (selected == 0)
         return;
-    index += (CHAR_SIZE_DRC_Y*3) + 4;
+    index += (CHAR_SIZE_DRC_Y*(ARRAY_SIZE(fixRegionBrickOptions)+1)) + 4;
 
     // Attempt to set the region code.
     int mcpHandle = IOS_Open("/dev/mcp", 0);
