@@ -855,7 +855,7 @@ static void option_InstallWUP(void)
         IOS_Close(mcpHandle);
         return;
     }
-    res = MCP_SetTargetUsb(mcpHandle, 0);
+    res = MCP_InstallSetTargetUsb(mcpHandle, 0);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "MCP_InstallSetTargetDevice: %x", res);
