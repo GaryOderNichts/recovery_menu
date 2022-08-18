@@ -45,6 +45,7 @@ static void option_LoadNetConf(void);
 static void option_displayDRCPin(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
+static void option_FixRegionBrick(void);
 static void option_SystemInformation(void);
 static void option_Shutdown(void);
 
@@ -82,6 +83,7 @@ static const Menu mainMenuOptions[] = {
     {"Display DRC Pin",             {.callback = option_displayDRCPin}},
     {"Install WUP",                 {.callback = option_InstallWUP}},
     {"Edit Parental Controls",      {.callback = option_EditParental}},
+    {"Fix Region Brick",            {.callback = option_FixRegionBrick}},
     {"System Information",          {.callback = option_SystemInformation}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
@@ -953,6 +955,120 @@ static void option_EditParental(void)
     }
 }
 
+static const char region_tbl[7][4] = {
+    "JPN", "USA", "EUR", "AUS",
+    "CHN", "KOR", "TWN",
+};
+
+/**
+ * Get region code information.
+ * @param productArea_id Product area ID: 0-6
+ * @param gameRegion Bitfield of game regions
+ * @return 0 on success; negative on error
+ */
+static int getRegionInfo(int* productArea_id, int* gameRegion)
+{
+    MCPSysProdSettings sysProdSettings;
+
+    int mcpHandle = IOS_Open("/dev/mcp", 0);
+    if (mcpHandle < 0)
+        return mcpHandle;
+
+    int res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
+    IOS_Close(mcpHandle);
+    if (res < 0)
+        return res;
+
+    // productArea is a single region.
+    if (sysProdSettings.product_area == 0)
+        return -1;
+
+    if (productArea_id) {
+        *productArea_id = __builtin_ctz(sysProdSettings.product_area);
+    }
+    if (gameRegion) {
+        *gameRegion = sysProdSettings.game_region;
+    }
+    return 0;
+}
+
+static void option_FixRegionBrick(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("Fix Region Brick");
+
+    Menu fixSimpleBrick[] = {
+        {"Back", {0} },
+        {"Set Region to XXX", {0} },
+    };
+
+    uint32_t index = 16 + 8 + 2 + 8;
+
+    // Get the system region code, then check if a matching
+    // Wii U Menu is installed.
+    int productArea_id;
+    int res = getRegionInfo(&productArea_id, NULL);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to get the system region code: %x", res);
+        waitButtonInput();
+        return;
+    }
+
+    gfx_set_font_color(COLOR_PRIMARY);
+    if (productArea_id >= 0 && productArea_id < ARRAY_SIZE(region_tbl)) {
+        gfx_printf(16, index, 0, "System region code:   %s", region_tbl[productArea_id]);
+    } else {
+        gfx_printf(16, index, 0, "System region code:   %d", productArea_id);
+    }
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    // Wii U Menu path ('x' is at path[43])
+    char path[] = "/vol/storage_mlc01/sys/title/00050010/10040x00/code/app.xml";
+
+    // Check if Wii U Menu for this region exists.
+    int menu_matches_region = 0;
+    int menu_productArea_id = -1;
+    int fileHandle;
+
+    path[43] = productArea_id + '0';
+    res = FSA_OpenFile(fsaHandle, path, "r", &fileHandle);
+    if (res >= 0) {
+        menu_matches_region = 1;
+        menu_productArea_id = productArea_id;
+        FSA_CloseFile(fsaHandle, fileHandle);
+    }
+
+    if (!menu_matches_region) {
+        // Check if another Wii U Menu is installed.
+        for (int i = 0; i < ARRAY_SIZE(region_tbl); i++) {
+            if (i == productArea_id)
+                continue;
+
+            path[43] = '0' + i;
+            res = FSA_OpenFile(fsaHandle, path, "r", &fileHandle);
+            if (res >= 0) {
+                menu_productArea_id = i;
+                FSA_CloseFile(fsaHandle, fileHandle);
+                break;
+            }
+        }
+    }
+
+    gfx_print(16, index, 0, "Installed Wii U Menu: ");
+    const char* const menu_region_str = (menu_productArea_id >= 0) ? region_tbl[menu_productArea_id] : "NONE";
+    if (menu_matches_region) {
+        // Matching menu found. No region brick?
+        gfx_set_font_color(COLOR_SUCCESS);
+    } else {
+        gfx_set_font_color(COLOR_ERROR);
+    }
+    gfx_print(16+(22*CHAR_SIZE_DRC_X), index, 0, menu_region_str);
+
+    gfx_set_font_color(COLOR_PRIMARY);
+    waitButtonInput();
+}
+
 static void option_SystemInformation(void)
 {
     gfx_clear(COLOR_BACKGROUND);
@@ -1062,42 +1178,23 @@ static void option_SystemInformation(void)
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
 
-    int productArea_id = 0;    // 0-6, matches title ID
-    MCPSysProdSettings sysProdSettings;
-    sysProdSettings.product_area = 0;
-    int mcpHandle = IOS_Open("/dev/mcp", 0);
-    if (mcpHandle >= 0) {
-        res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
-        if (res >= 0) {
-            static const char region_tbl[7][4] = {
-                "JPN", "USA", "EUR", "AUS",
-                "CHN", "KOR", "TWN",
-            };
+    int productArea_id = 0; // 0-6, matches title ID
+    int gameRegion;
+    res = getRegionInfo(&productArea_id, &gameRegion);
+    if (res >= 0) {
+        // productArea is a single region.
+        gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
+        index += CHAR_SIZE_DRC_Y + 4;
 
-            // productArea is a single region.
-            if (sysProdSettings.product_area != 0) {
-                productArea_id = __builtin_ctz(sysProdSettings.product_area);
-                if (productArea_id < 7) {
-                    gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
-                    index += CHAR_SIZE_DRC_Y + 4;
-                }
-            }
-
-            // gameRegion is multiple regions.
-            gfx_printf(16, index, 0, "gameRegion:  %s %s %s %s %s %s",
-                (sysProdSettings.game_region & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
-                (sysProdSettings.game_region & MCP_REGION_USA)    ? region_tbl[1] : "---",
-                (sysProdSettings.game_region & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
-                (sysProdSettings.game_region & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
-                (sysProdSettings.game_region & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
-                (sysProdSettings.game_region & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
-            index += CHAR_SIZE_DRC_Y + 4;
-        } else {
-            // Failed to get sys_prod settings.
-            // Clear the product area.
-            sysProdSettings.product_area = 0;
-        }
-        IOS_Close(mcpHandle);
+        // gameRegion is multiple regions.
+        gfx_printf(16, index, 0, "gameRegion:  %s %s %s %s %s %s",
+            (gameRegion & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
+            (gameRegion & MCP_REGION_USA)    ? region_tbl[1] : "---",
+            (gameRegion & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
+            (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
+            (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
+            (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
+        index += CHAR_SIZE_DRC_Y + 4;
     }
 
     // Wii U Menu version
