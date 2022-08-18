@@ -997,11 +997,6 @@ static void option_FixRegionBrick(void)
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("Fix Region Brick");
 
-    Menu fixSimpleBrick[] = {
-        {"Back", {0} },
-        {"Set Region to XXX", {0} },
-    };
-
     uint32_t index = 16 + 8 + 2 + 8;
 
     // Get the system region code, then check if a matching
@@ -1104,8 +1099,27 @@ static void option_FixRegionBrick(void)
         gfx_print(16, index, 0, "The game region does not match the installed Wii U Menu.");
         index += CHAR_SIZE_DRC_Y + 4;
     }
+    index += CHAR_SIZE_DRC_Y + 4;
 
     gfx_set_font_color(COLOR_PRIMARY);
+    gfx_printf(16, index, 0, "Repair the system by setting the region code to %s?", menu_region_str);
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    char menuItem[] = "Set Region to XXX";
+    menuItem[14] = menu_region_str[0];
+    menuItem[15] = menu_region_str[1];
+    menuItem[16] = menu_region_str[2];
+
+    const Menu fixRegionBrickOptions[] = {
+        {"Cancel", {0} },
+        {menuItem, {0} },
+    };
+    int selected = drawMenu("Fix Region Brick",
+        fixRegionBrickOptions, ARRAY_SIZE(fixRegionBrickOptions), selected,
+        MenuFlag_NoClearScreen, 16, index);
+    if (selected == 0)
+        return;
+
     waitButtonInput();
 }
 
