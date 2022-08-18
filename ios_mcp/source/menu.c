@@ -1132,7 +1132,7 @@ static void option_FixRegionBrick(void)
         {menuItem, {0} },
     };
     int selected = drawMenu("Fix Region Brick",
-        fixRegionBrickOptions, ARRAY_SIZE(fixRegionBrickOptions), selected,
+        fixRegionBrickOptions, ARRAY_SIZE(fixRegionBrickOptions), 0,
         MenuFlag_NoClearScreen, 16, index);
     if (selected == 0)
         return;
