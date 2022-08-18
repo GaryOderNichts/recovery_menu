@@ -55,17 +55,6 @@ extern uint64_t currentColdbootTitle;
 
 static int fsaHandle = -1;
 
-/**
- * Number of elements in an array.
- *
- * Includes a static check for pointers to make sure
- * a dynamically-allocated array wasn't specified.
- * Reference: http://stackoverflow.com/questions/8018843/macro-definition-array-size
- */
-#define ARRAY_SIZE(x) \
-	(((sizeof(x) / sizeof(x[0]))) / \
-		(size_t)(!(sizeof(x) % sizeof(x[0]))))
-
 typedef struct Menu {
     const char* name;
     union {

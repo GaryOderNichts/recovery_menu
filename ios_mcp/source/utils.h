@@ -1,6 +1,17 @@
 #pragma once
 #include <stdint.h>
 
+/**
+ * Number of elements in an array.
+ *
+ * Includes a static check for pointers to make sure
+ * a dynamically-allocated array wasn't specified.
+ * Reference: http://stackoverflow.com/questions/8018843/macro-definition-array-size
+ */
+#define ARRAY_SIZE(x) \
+	(((sizeof(x) / sizeof(x[0]))) / \
+		(size_t)(!(sizeof(x) % sizeof(x[0]))))
+
 #define SYSTEM_EVENT_FLAG_WAKE1            0x01
 #define SYSTEM_EVENT_FLAG_WAKE0            0x02
 #define SYSTEM_EVENT_FLAG_BT_INTERRUPT     0x04
