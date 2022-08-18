@@ -1006,8 +1006,8 @@ static void option_FixRegionBrick(void)
 
     // Get the system region code, then check if a matching
     // Wii U Menu is installed.
-    int productArea_id;
-    int res = getRegionInfo(&productArea_id, NULL);
+    int productArea_id, gameRegion;
+    int res = getRegionInfo(&productArea_id, &gameRegion);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to get the system region code: %x", res);
@@ -1015,6 +1015,7 @@ static void option_FixRegionBrick(void)
         return;
     }
 
+    // productArea
     gfx_set_font_color(COLOR_PRIMARY);
     if (productArea_id >= 0 && productArea_id < ARRAY_SIZE(region_tbl)) {
         gfx_printf(16, index, 0, "System region code:   %s", region_tbl[productArea_id]);
@@ -1023,11 +1024,23 @@ static void option_FixRegionBrick(void)
     }
     index += CHAR_SIZE_DRC_Y + 4;
 
+    // gameRegion
+    gfx_printf(16, index, 0, "Game region code:     %s %s %s %s %s %s",
+        (gameRegion & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
+        (gameRegion & MCP_REGION_USA)    ? region_tbl[1] : "---",
+        (gameRegion & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
+        (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
+        (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
+        (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
+    index += CHAR_SIZE_DRC_Y + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
+
     // Wii U Menu path ('x' is at path[43])
     char path[] = "/vol/storage_mlc01/sys/title/00050010/10040x00/code/app.xml";
 
     // Check if Wii U Menu for this region exists.
     int menu_matches_region = 0;
+    int menu_is_in_gameRegion = 0;
     int menu_productArea_id = -1;
     int fileHandle;
 
@@ -1055,15 +1068,42 @@ static void option_FixRegionBrick(void)
         }
     }
 
+    // Is the menu region in gameRegion?
+    menu_is_in_gameRegion = (gameRegion & (1U << menu_productArea_id));
+
     gfx_print(16, index, 0, "Installed Wii U Menu: ");
     const char* const menu_region_str = (menu_productArea_id >= 0) ? region_tbl[menu_productArea_id] : "NONE";
-    if (menu_matches_region) {
-        // Matching menu found. No region brick?
+    if (menu_matches_region && menu_is_in_gameRegion) {
+        // Matching menu found.
         gfx_set_font_color(COLOR_SUCCESS);
     } else {
         gfx_set_font_color(COLOR_ERROR);
     }
     gfx_print(16+(22*CHAR_SIZE_DRC_X), index, 0, menu_region_str);
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    if (menu_matches_region && menu_is_in_gameRegion) {
+        gfx_set_font_color(COLOR_PRIMARY);
+        gfx_print(16, index, 0, "The system region appears to be set correctly.");
+        waitButtonInput();
+        return;
+    }
+
+    // Show the errors.
+    if (menu_productArea_id < 0) {
+        gfx_print(16, index, 0, "Could not find a Wii U Menu title installed on this system.");
+        waitButtonInput();
+        return;
+    }
+
+    if (!menu_matches_region) {
+        gfx_print(16, index, 0, "The system region does not match the installed Wii U Menu.");
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
+    if (!menu_is_in_gameRegion) {
+        gfx_print(16, index, 0, "The game region does not match the installed Wii U Menu.");
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
 
     gfx_set_font_color(COLOR_PRIMARY);
     waitButtonInput();
