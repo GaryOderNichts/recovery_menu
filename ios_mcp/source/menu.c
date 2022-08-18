@@ -841,7 +841,8 @@ static void option_InstallWUP(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Installing title: 0x%016llx...", info.titleId);
+    gfx_printf(16, index, 0, "Installing title: %08lx-%08lx...",
+        (uint32_t)(info.titleId >> 32), (uint32_t)(info.titleId & 0xFFFFFFFFU));
     index += CHAR_SIZE_DRC_Y + 4;
 
     // only install to NAND
