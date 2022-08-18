@@ -1124,10 +1124,8 @@ static void option_FixRegionBrick(void)
     gfx_printf(16, index, 0, "Repair the system by setting the region code to %s?", menu_region_str);
     index += CHAR_SIZE_DRC_Y + 4;
 
-    char menuItem[] = "Set Region to XXX";
-    menuItem[14] = menu_region_str[0];
-    menuItem[15] = menu_region_str[1];
-    menuItem[16] = menu_region_str[2];
+    char menuItem[20];
+    snprintf(menuItem, sizeof(menuItem), "Set Region to %s", menu_region_str);
 
     const Menu fixRegionBrickOptions[] = {
         {"Cancel", {0} },
