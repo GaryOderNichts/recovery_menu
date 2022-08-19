@@ -12,6 +12,8 @@
     (((sizeof(x) / sizeof(x[0]))) / \
         (size_t)(!(sizeof(x) % sizeof(x[0]))))
 
+#define ALIGN(x, align) (((x) + ((align) -1)) & ~((align) -1))
+
 enum {
     SYSTEM_EVENT_FLAG_WAKE1            = 1 << 0,
     SYSTEM_EVENT_FLAG_WAKE0            = 1 << 1,
