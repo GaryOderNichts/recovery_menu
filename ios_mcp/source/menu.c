@@ -45,7 +45,7 @@ static void option_LoadNetConf(void);
 static void option_displayDRCPin(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
-static void option_FixRegionBrick(void);
+static void option_DebugSystemRegion(void);
 static void option_SystemInformation(void);
 static void option_Shutdown(void);
 
@@ -72,7 +72,7 @@ static const Menu mainMenuOptions[] = {
     {"Display DRC Pin",             {.callback = option_displayDRCPin}},
     {"Install WUP",                 {.callback = option_InstallWUP}},
     {"Edit Parental Controls",      {.callback = option_EditParental}},
-    {"Fix Region Brick",            {.callback = option_FixRegionBrick}},
+    {"Debug System Region",         {.callback = option_DebugSystemRegion}},
     {"System Information",          {.callback = option_SystemInformation}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
@@ -964,10 +964,10 @@ static int getRegionInfo(int* productArea_id, int* gameRegion)
     return 0;
 }
 
-static void option_FixRegionBrick(void)
+static void option_DebugSystemRegion(void)
 {
     gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("Fix Region Brick");
+    drawTopBar("Debug System Region");
 
     uint32_t index = 16 + 8 + 2 + 8;
 
@@ -1092,7 +1092,7 @@ static void option_FixRegionBrick(void)
         {"Cancel", {0} },
         {"Fix Region", {0} },
     };
-    int selected = drawMenu("Fix Region Brick",
+    int selected = drawMenu("Debug System Region",
         fixRegionBrickOptions, ARRAY_SIZE(fixRegionBrickOptions), 0,
         MenuFlag_NoClearScreen, 16, index);
     if (selected == 0)
