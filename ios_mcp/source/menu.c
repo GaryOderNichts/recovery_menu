@@ -1044,18 +1044,15 @@ static void option_FixRegionBrick(void)
     const char* menu_region_str;
     if (menu_count == 0 || menu_productArea_id < 0) {
         menu_region_str = "NONE";
+        gfx_set_font_color(COLOR_ERROR);
     } else if (menu_count > 1) {
         menu_region_str = "MANY";
+        gfx_set_font_color(COLOR_ERROR);
     } else {
         menu_region_str = region_tbl[menu_productArea_id];
+        gfx_set_font_color(COLOR_SUCCESS);
     }
 
-    if (menu_matches_region && menu_is_in_gameRegion && menu_count == 1) {
-        // Matching menu found.
-        gfx_set_font_color(COLOR_SUCCESS);
-    } else {
-        gfx_set_font_color(COLOR_ERROR);
-    }
     gfx_print(16+(22*CHAR_SIZE_DRC_X), index, 0, menu_region_str);
     index += CHAR_SIZE_DRC_Y + 4;
 
@@ -1269,8 +1266,8 @@ static void option_SystemInformation(void)
     }
 
     // Wii U Menu version
-    // FIXME: CAT-I has all three region versions installed.
-    // Need to get the actual productArea from sys_prod.xml.
+    // NOTE: If productArea doesn't match the installed Wii U Menu,
+    // the Wii U Menu version won't be displayed.
 #define VERSION_BIN_MAGIC_STR "VER\0"
 #define VERSION_BIN_MAGIC_U32 0x56455200
     typedef struct _version_bin_t {
