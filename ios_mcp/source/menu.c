@@ -1326,6 +1326,9 @@ int menuThread(void* arg)
 {
     printf("menuThread running\n");
 
+    // set LED to purple-orange blinking
+    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE);
+
     // stop ppcHeartbeatThread and reset PPC
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
     resetPPC();
@@ -1349,10 +1352,11 @@ int menuThread(void* arg)
     // initialize the font
     if (gfx_init_font() != 0) {
         // failed to initialize font
-        // can't do anything without a font, so shut down
+        // can't do anything without a font, so sleep for 5 secs and shut down
+        usleep(1000 * 1000 * 5);
         IOS_Shutdown(0);
     }
-        
+
     // open fsa and mount sdcard
     fsaHandle = IOS_Open("/dev/fsa", 0);
     if (fsaHandle > 0) {
@@ -1363,6 +1367,9 @@ int menuThread(void* arg)
     } else {
         printf("Failed to open FSA: %x\n", fsaHandle);
     }
+
+    // set LED to purple
+    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_BLUE);
 
     int selected = 0;
     while (1) {

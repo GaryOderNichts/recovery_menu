@@ -1,6 +1,7 @@
 #include "imports.h"
 #include "thread.h"
 #include "lolserial.h"
+#include "bsp.h"
 #include "../../ios_mcp/ios_mcp_syms.h"
 
 extern char __kernel_bss_start;
@@ -75,6 +76,10 @@ int _main(void* arg)
     invalidate_icache();
 
     enable_interrupts(level);
+
+    // set LED to purple-off blinking
+    uint8_t ledMask = 0x3c; // NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING
+    bspWrite("SMC", 0, "NotificationLED", 1, &ledMask);
 
     // give the current thread full access to MCP for starting the thread
     setClientCapabilities(currentThreadContext->pid, 0xd, 0xffffffffffffffffllu);

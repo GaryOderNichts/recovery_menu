@@ -100,3 +100,8 @@ int readDCConfig(DisplayController_Config* config)
 {
     return bspRead("DISPLAY", 0, "DC_CONFIG", 0x14, config);
 }
+
+int setNotificationLED(uint8_t mask)
+{
+    return bspWrite("SMC", 0, "NotificationLED", 1, &mask);
+}
