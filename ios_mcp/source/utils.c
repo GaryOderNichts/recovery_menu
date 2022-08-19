@@ -105,3 +105,8 @@ int setNotificationLED(uint8_t mask)
 {
     return bspWrite("SMC", 0, "NotificationLED", 1, &mask);
 }
+
+int setDrivePower(int power)
+{
+    return bspWrite("SMC", 0, "ODDPower", 4, &power);
+}

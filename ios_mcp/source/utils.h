@@ -66,3 +66,5 @@ int initDisplay(uint32_t configuration);
 int readDCConfig(DisplayController_Config* config);
 
 int setNotificationLED(uint8_t mask);
+
+int setDrivePower(int power);

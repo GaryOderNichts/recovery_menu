@@ -1333,6 +1333,9 @@ int menuThread(void* arg)
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
     resetPPC();
 
+    // cut power to the disc drive to not eject a disc every eject press
+    setDrivePower(0);
+
 #ifdef DC_INIT
     /* Note: CONFIGURATION_0 is 720p instead of 480p,
        but doesn't shut down the GPU properly? The
