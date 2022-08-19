@@ -53,6 +53,11 @@ Don't place the WUP into any subfolders.
 Displays the current Parental Controls pin configuration.  
 Allows disabling Parental Controls.
 
+### Fix Region Brick
+Fixes bricks caused by setting productArea and/or gameRegion to an invalid
+value. Symptoms include being unable to launch System Settings or other
+in-region titles.
+
 ## Building
 ```bash
 # build the docker container

@@ -18,7 +18,7 @@ typedef struct __attribute__((packed)) {
 
 int MCP_InstallGetInfo(int handle, const char* path, MCPInstallInfo* out_info);
 
-int MCP_SetTargetUsb(int handle, int target);
+int MCP_InstallSetTargetUsb(int handle, int target);
 
 int MCP_InstallSetTargetDevice(int handle, int device);
 

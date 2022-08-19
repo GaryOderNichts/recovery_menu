@@ -25,6 +25,12 @@ void gfx_set_font_color(uint32_t col);
 
 uint32_t gfx_get_text_width(const char* string);
 
-void gfx_print(uint32_t x, uint32_t y, int alignRight, const char* string);
+typedef enum GfxPrintFlags {
+	GfxPrintFlag_AlignRight		= (1U << 0),
+	GfxPrintFlag_ClearBG		= (1U << 1),
+} GfxPrintFlags;
 
-void gfx_printf(uint32_t x, uint32_t y, int alignRight, const char* format, ...);
+void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* string);
+
+__attribute__((format(printf, 4, 5)))
+void gfx_printf(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* format, ...);

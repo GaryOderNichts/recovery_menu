@@ -45,6 +45,7 @@ static void option_LoadNetConf(void);
 static void option_displayDRCPin(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
+static void option_DebugSystemRegion(void);
 static void option_SystemInformation(void);
 static void option_Shutdown(void);
 
@@ -54,28 +55,33 @@ extern uint64_t currentColdbootTitle;
 
 static int fsaHandle = -1;
 
-static struct {
+typedef struct Menu {
     const char* name;
-    void (*callback)(void);
-} mainMenuOptions[] = {
-    { "Set Coldboot Title", option_SetColdbootTitle },
-    { "Dump Syslogs", option_DumpSyslogs },
-    { "Dump OTP + SEEPROM", option_DumpOtpAndSeeprom },
-    { "Start wupserver", option_StartWupserver },
-    { "Load Network Configuration", option_LoadNetConf },
-    { "Display DRC Pin", option_displayDRCPin },
-    { "Install WUP", option_InstallWUP, },
-    { "Edit Parental Controls", option_EditParental, },
-    { "System Information", option_SystemInformation, },
-    { "Shutdown", option_Shutdown },
+    union {
+        void (*callback)(void);
+        uint64_t tid;
+    };
+} Menu;
+
+static const Menu mainMenuOptions[] = {
+    {"Set Coldboot Title",          {.callback = option_SetColdbootTitle}},
+    {"Dump Syslogs",                {.callback = option_DumpSyslogs}},
+    {"Dump OTP + SEEPROM",          {.callback = option_DumpOtpAndSeeprom}},
+    {"Start wupserver",             {.callback = option_StartWupserver}},
+    {"Load Network Configuration",  {.callback = option_LoadNetConf}},
+    {"Display DRC Pin",             {.callback = option_displayDRCPin}},
+    {"Install WUP",                 {.callback = option_InstallWUP}},
+    {"Edit Parental Controls",      {.callback = option_EditParental}},
+    {"Debug System Region",         {.callback = option_DebugSystemRegion}},
+    {"System Information",          {.callback = option_SystemInformation}},
+    {"Shutdown",                    {.callback = option_Shutdown}},
 };
-static const int numMainMenuOptions = sizeof(mainMenuOptions) / sizeof(mainMenuOptions[0]);
 
 static void drawTopBar(const char* title)
 {
     // draw top bar
     gfx_set_font_color(COLOR_PRIMARY);
-    gfx_printf((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
+    gfx_print((SCREEN_WIDTH / 2) + (gfx_get_text_width(title) / 2), 8, 1, title);
     gfx_draw_rect_filled(8, 16 + 8, SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
 }
 
@@ -85,15 +91,122 @@ static void drawBars(const char* title)
 
     // draw bottom bar
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
-    gfx_printf(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 1, "POWER: Choose");
+    gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
+    gfx_print(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, GfxPrintFlag_AlignRight, "POWER: Choose");
+}
+
+typedef enum {
+    MenuFlag_ShowTID        = (1U << 0),
+    MenuFlag_NoClearScreen  = (1U << 1),
+} MenuFlags;
+
+/**
+ * Draw a single menu item. Called by drawMenu().
+ * @param menuItem Menu item
+ * @param selected If non-zero, item is selected
+ * @param flags
+ * @param x
+ * @param y
+ */
+static void drawMenuItem(const Menu* menuItem, int selected, uint32_t flags, uint32_t x, uint32_t y)
+{
+    const char *text;
+    char buf[64];
+    if (!(flags & MenuFlag_ShowTID)) {
+        text = menuItem->name;
+    } else {
+        if (menuItem->tid != 0) {
+            snprintf(buf, sizeof(buf), "%s - %08lx-%08lx",
+                menuItem->name, (uint32_t)(menuItem->tid >> 32), (uint32_t)(menuItem->tid & 0xFFFFFFFF));
+            text = buf;
+        } else {
+            text = menuItem->name;
+        }
+    }
+
+    gfx_draw_rect_filled(x - 1, y - 1,
+        gfx_get_text_width(text) + 2, CHAR_SIZE_DRC_Y + 2,
+        selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
+
+    gfx_set_font_color(selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
+    gfx_print(x, y, 0, text);
+}
+
+/**
+ * Draw a menu and wait for the user to select an option.
+ * @param title Menu title
+ * @param menu Array of menu entries
+ * @param count Number of menu entries
+ * @param selected Initial selected item index
+ * @param flags
+ * @param x
+ * @param y
+ * @return Selected menu entry index.
+ */
+static int drawMenu(const char* title, const Menu* menu, size_t count,
+        int selected, uint32_t flags, uint32_t x, uint32_t y)
+{
+    int redraw = 1;
+    int prev_selected = -1;
+    if (selected < 0 || selected >= count)
+        selected = 0;
+
+    // draw the full menu
+    if (!(flags & MenuFlag_NoClearScreen)) {
+        gfx_clear(COLOR_BACKGROUND);
+    }
+    int index = y;
+    for (int i = 0; i < count; i++) {
+        drawMenuItem(&menu[i], selected == i, flags, x, index);
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
+
+    uint8_t cur_flag = 0;
+    uint8_t flag = 0;
+    while (1) {
+        readSystemEventFlag(&flag);
+        if (cur_flag != flag) {
+            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
+                prev_selected = selected;
+                selected++;
+                if (selected == count)
+                    selected = 0;
+                redraw = 1;
+            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
+                return selected;
+            }
+            cur_flag = flag;
+        }
+
+        if (redraw) {
+            if (prev_selected != selected) {
+                // Redraw the previously selected menu item.
+                if (prev_selected >= 0) {
+                    index = y + ((CHAR_SIZE_DRC_Y + 4) * prev_selected);
+                    drawMenuItem(&menu[prev_selected], 0, flags, x, index);
+                }
+
+                // Redraw the selected item.
+                index = y + ((CHAR_SIZE_DRC_Y + 4) * selected);
+                drawMenuItem(&menu[selected], 1, flags, x, index);
+            }
+
+            gfx_set_font_color(COLOR_PRIMARY);
+            drawBars(title);
+            redraw = 0;
+        }
+    }
 }
 
 static void waitButtonInput(void)
 {
     gfx_set_font_color(COLOR_PRIMARY);
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
-    gfx_printf(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "Press EJECT or POWER to proceed...");
+
+    gfx_draw_rect_filled(16 - 1, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4,
+        SCREEN_WIDTH - 16, CHAR_SIZE_DRC_Y + 2,
+        COLOR_BACKGROUND);
+    gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "Press EJECT or POWER to proceed...");
 
     uint8_t cur_flag = 0;
     uint8_t flag = 0;
@@ -131,21 +244,16 @@ static int isSystemUsingDebugKeyset(void)
 
 static void option_SetColdbootTitle(void)
 {
-    typedef struct _coldbootTitleOptions_t {
-        const char* desc;
-        uint64_t tid;
-    } coldbootTitleOptions_t;
-
-    static const coldbootTitleOptions_t coldbootTitleOptions[] = {
-        {"Back", 0},
-        {"Wii U Menu (JPN)", 0x0005001010040000},
-        {"Wii U Menu (USA)", 0x0005001010040100},
-        {"Wii U Menu (EUR)", 0x0005001010040200},
+    static const Menu coldbootTitleOptions[] = {
+        {"Back", {0} },
+        {"Wii U Menu (JPN)", {.tid = 0x0005001010040000}},
+        {"Wii U Menu (USA)", {.tid = 0x0005001010040100}},
+        {"Wii U Menu (EUR)", {.tid = 0x0005001010040200}},
 
         // non-retail systems only
-        {"System Config Tool", 0x000500101F700500},
-        {"DEVMENU (pre-2.09)", 0x000500101F7001FF},
-        {"Kiosk Menu        ", 0x000500101FA81000},
+        {"System Config Tool", {.tid = 0x000500101F700500}},
+        {"DEVMENU (pre-2.09)", {.tid = 0x000500101F7001FF}},
+        {"Kiosk Menu        ", {.tid = 0x000500101FA81000}},
     };
 
     // Only print the non-retail options if the keyset is debug.
@@ -153,89 +261,50 @@ static void option_SetColdbootTitle(void)
 
     int rval;
     uint64_t newtid = 0;
-
-    int redraw = 1;
     int selected = 0;
 
-    uint8_t cur_flag = 0;
-    uint8_t flag = 0;
+    gfx_clear(COLOR_BACKGROUND);
     while (1) {
-        readSystemEventFlag(&flag);
-        if (cur_flag != flag) {
-            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
-                selected++;
+        uint32_t index = 16 + 8 + 2 + 8;
+        gfx_set_font_color(COLOR_PRIMARY);
 
-                if (selected == option_count) {
-                    selected = 0;
-                }
+        // draw current titles
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Current coldboot title:    %08lx-%08lx",
+            (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
+        index += CHAR_SIZE_DRC_Y + 4;
 
-                redraw = 1;
-            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
-                newtid = coldbootTitleOptions[selected].tid;
-                if (newtid == 0)
-                    return;
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Current coldboot os:       %08lx-%08lx",
+            (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
+        index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
-                rval = setDefaultTitleId(newtid);
-                redraw = 1;
-            }
+        selected = drawMenu("Set Coldboot Title",
+            coldbootTitleOptions, option_count, selected,
+            MenuFlag_ShowTID | MenuFlag_NoClearScreen, 16, index);
+        index += (CHAR_SIZE_DRC_Y + 4) * option_count;
 
-            cur_flag = flag;
-        }
+        newtid = coldbootTitleOptions[selected].tid;
+        if (newtid == 0)
+            return;
 
-        if (redraw) {
-            gfx_clear(COLOR_BACKGROUND);
-            uint32_t index = 16 + 8 + 2 + 8;
+        // set the new default title ID
+        rval = setDefaultTitleId(newtid);
 
-            // draw current titles
-            gfx_printf(16, index, 0, "Current coldboot title:    %08x-%08x",
-                (uint32_t)(currentColdbootTitle >> 32), (uint32_t)(currentColdbootTitle & 0xFFFFFFFFU));
-            index += CHAR_SIZE_DRC_Y + 4;
-
-            gfx_printf(16, index, 0, "Current coldboot os:       %08x-%08x",
-                (uint32_t)(currentColdbootOS >> 32), (uint32_t)(currentColdbootOS & 0xFFFFFFFFU));
+        if (newtid) {
             index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
-            // draw options
-            for (int i = 0; i < option_count; i++) {
-                char buf[64];
-                if (coldbootTitleOptions[i].tid != 0) {
-                    // Append the title ID in hi-lo format.
-                    snprintf(buf, sizeof(buf), "%s - %08lx-%08lx", coldbootTitleOptions[i].desc,
-                        (uint32_t)(coldbootTitleOptions[i].tid >> 32),
-                        (uint32_t)(coldbootTitleOptions[i].tid & 0xFFFFFFFFU));
-                } else {
-                    // No title ID. Use the option by itself.
-                    snprintf(buf, sizeof(buf), "%s", coldbootTitleOptions[i].desc);
-                }
-
-                gfx_draw_rect_filled(16 - 1, index - 1,
-                    gfx_get_text_width(buf) + 2, CHAR_SIZE_DRC_Y + 2,
-                    selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-                gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                gfx_printf(16, index, 0, buf);
-
-                index += CHAR_SIZE_DRC_Y + 4;
-            }
-
             gfx_set_font_color(COLOR_PRIMARY);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG,
+                "Setting coldboot title id to %08lx-%08lx, rval %d  ",
+                (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
+            index += CHAR_SIZE_DRC_Y + 4;
 
-            if (newtid) {
-                index += (CHAR_SIZE_DRC_Y + 4) * 2;
-                gfx_printf(16, index, 0, "Setting coldboot title id to %08x-%08x, rval %d",
-                    (uint32_t)(newtid >> 32), (uint32_t)(newtid & 0xFFFFFFFFU), rval);
-                index += CHAR_SIZE_DRC_Y + 4;
-                if (rval < 0) {
-                    gfx_set_font_color(COLOR_ERROR);
-                    gfx_printf(16, index, 0, "Error! Make sure title is installed correctly.");
-                } else {
-                    gfx_set_font_color(COLOR_SUCCESS);
-                    gfx_printf(16, index, 0, "Success!");
-                }
+            if (rval < 0) {
+                gfx_set_font_color(COLOR_ERROR);
+                gfx_print(16, index, GfxPrintFlag_ClearBG, "Error! Make sure title is installed correctly.");
+            } else {
+                gfx_set_font_color(COLOR_SUCCESS);
+                gfx_print(16, index, GfxPrintFlag_ClearBG, "Success!                                      ");
             }
-
-            drawBars("Set Coldboot Title");
-            redraw = 0;
         }
     }
 }
@@ -247,7 +316,7 @@ static void option_DumpSyslogs(void)
     drawTopBar("Dumping Syslogs...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Creating 'logs' directory...");
+    gfx_print(16, index, 0, "Creating 'logs' directory...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int res = FSA_MakeDir(fsaHandle, "/vol/storage_recovsd/logs", 0x600);
@@ -258,7 +327,7 @@ static void option_DumpSyslogs(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Opening system 'logs' directory...");
+    gfx_print(16, index, 0, "Opening system 'logs' directory...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int dir_handle;
@@ -298,7 +367,7 @@ static void option_DumpSyslogs(void)
 
     index += CHAR_SIZE_DRC_Y + 4;
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     waitButtonInput();
 
     FSA_CloseDir(fsaHandle, dir_handle);
@@ -310,13 +379,13 @@ static void option_DumpOtpAndSeeprom(void)
     drawTopBar("Dumping OTP + SEEPROM...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Creating otp.bin...");
+    gfx_print(16, index, 0, "Creating otp.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     void* dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Out of memory!");
+        gfx_print(16, index, 0, "Out of memory!");
         waitButtonInput();
         return;
     }
@@ -332,7 +401,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Reading OTP...");
+    gfx_print(16, index, 0, "Reading OTP...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = readOTP(dataBuffer, 0x400);
@@ -346,7 +415,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Writing otp.bin...");
+    gfx_print(16, index, 0, "Writing otp.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x400, otpHandle, 0);
@@ -362,7 +431,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     FSA_CloseFile(fsaHandle, otpHandle);
 
-    gfx_printf(16, index, 0, "Creating seeprom.bin...");
+    gfx_print(16, index, 0, "Creating seeprom.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int seepromHandle;
@@ -376,7 +445,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Reading SEEPROM...");
+    gfx_print(16, index, 0, "Reading SEEPROM...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = EEPROM_Read(0, 0x100, (uint16_t*) dataBuffer);
@@ -390,7 +459,7 @@ static void option_DumpOtpAndSeeprom(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Writing seeprom.bin...");
+    gfx_print(16, index, 0, "Writing seeprom.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x200, seepromHandle, 0);
@@ -405,7 +474,7 @@ static void option_DumpOtpAndSeeprom(void)
     }
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     waitButtonInput();
 
     FSA_CloseFile(fsaHandle, seepromHandle);
@@ -418,7 +487,7 @@ static void option_StartWupserver(void)
     drawTopBar("Running wupserver...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Initializing netconf...");
+    gfx_print(16, index, 0, "Initializing netconf...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int res = netconf_init();
@@ -429,7 +498,7 @@ static void option_StartWupserver(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Waiting for network connection... 5s");
+    gfx_printf(16, index, 0, "Waiting for network connection... %ds", 5);
 
     NetConfInterfaceTypeEnum interface = 0xff;
     for (int i = 0; i < 5; i++) {
@@ -452,7 +521,7 @@ static void option_StartWupserver(void)
 
     if (interface == 0xff) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "No network connection!");
+        gfx_print(16, index, 0, "No network connection!");
         waitButtonInput();
         return;
     }
@@ -484,13 +553,13 @@ static void option_StartWupserver(void)
     wupserver_init();
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Wupserver running. Press EJECT or POWER to stop.");
+    gfx_print(16, index, 0, "Wupserver running. Press EJECT or POWER to stop.");
     index += CHAR_SIZE_DRC_Y + 4;
 
     waitButtonInput();
 
     gfx_set_font_color(COLOR_PRIMARY);
-    gfx_printf(16, index, 0, "Stopping wupserver...");
+    gfx_print(16, index, 0, "Stopping wupserver...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     wupserver_deinit();
@@ -516,7 +585,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
             }
         }
     } else if (strncmp(key, "ssid", sizeof("ssid")) == 0) {
-        gfx_printf(16, *console_idx, 0, "SSID: %s (%d)", value, value_len);
+        gfx_printf(16, *console_idx, 0, "SSID: %s (%lu)", value, value_len);
         (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
@@ -524,7 +593,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
             cfg->wifi.config.ssidlength = value_len;
         }
     } else if (strncmp(key, "key", sizeof("key")) == 0) {
-        gfx_printf(16, *console_idx, 0, "Key: ******* (%d)", value_len);
+        gfx_printf(16, *console_idx, 0, "Key: ******* (%lu)", value_len);
         (*console_idx) += CHAR_SIZE_DRC_Y + 4;
 
         if (value) {
@@ -549,7 +618,7 @@ static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, c
             } else if (strncmp(value, "WPA_PSK_AES", sizeof("WPA_PSK_AES")) == 0) {
                 cfg->wifi.config.privacy.mode = NET_CFG_WIFI_PRIVACY_MODE_WPA_PSK_AES;
             } else {
-                gfx_printf(16, *console_idx, 0, "Unknown key type!");
+                gfx_print(16, *console_idx, 0, "Unknown key type!");
                 (*console_idx) += CHAR_SIZE_DRC_Y + 4;
             }
         }
@@ -562,7 +631,7 @@ static void option_LoadNetConf(void)
     drawTopBar("Loading network configuration...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Initializing netconf...");
+    gfx_print(16, index, 0, "Initializing netconf...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int res = netconf_init();
@@ -573,7 +642,7 @@ static void option_LoadNetConf(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Reading network.cfg...");
+    gfx_print(16, index, 0, "Reading network.cfg...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int cfgHandle;
@@ -599,7 +668,7 @@ static void option_LoadNetConf(void)
     char* cfgBuffer = (char*) IOS_HeapAllocAligned(0xcaff, stat.size + 1, 0x40);
     if (!cfgBuffer) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Out of memory!");
+        gfx_print(16, index, 0, "Out of memory!");
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, cfgHandle);
@@ -650,7 +719,7 @@ static void option_LoadNetConf(void)
         network_parse_config_value(&index, &cfg, keyPtr, valuePtr, (cfgBuffer + stat.size) - valuePtr);
     }
 
-    gfx_printf(16, index, 0, "Applying configuration...");
+    gfx_print(16, index, 0, "Applying configuration...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = netconf_set_running(&cfg);
@@ -665,7 +734,7 @@ static void option_LoadNetConf(void)
     }
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     index += CHAR_SIZE_DRC_Y + 4;
 
     waitButtonInput();
@@ -680,7 +749,7 @@ static void option_displayDRCPin(void)
     drawTopBar("Display DRC Pin");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Reading DRH mac address...");
+    gfx_print(16, index, 0, "Reading DRH mac address...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int ccrHandle = IOS_Open("/dev/ccr_cdc", 0);
@@ -725,7 +794,7 @@ static void option_InstallWUP(void)
     drawTopBar("Installing WUP");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
+    gfx_print(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
     index += CHAR_SIZE_DRC_Y + 4;
 
     int mcpHandle = IOS_Open("/dev/mcp", 0);
@@ -736,7 +805,7 @@ static void option_InstallWUP(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Querying install info...");
+    gfx_print(16, index, 0, "Querying install info...");
     index += CHAR_SIZE_DRC_Y + 4;
 
     MCPInstallInfo info;
@@ -750,7 +819,8 @@ static void option_InstallWUP(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Installing title: 0x%016llx...", info.titleId);
+    gfx_printf(16, index, 0, "Installing title: %08lx-%08lx...",
+        (uint32_t)(info.titleId >> 32), (uint32_t)(info.titleId & 0xFFFFFFFFU));
     index += CHAR_SIZE_DRC_Y + 4;
 
     // only install to NAND
@@ -763,10 +833,10 @@ static void option_InstallWUP(void)
         IOS_Close(mcpHandle);
         return;
     }
-    res = MCP_SetTargetUsb(mcpHandle, 0);
+    res = MCP_InstallSetTargetUsb(mcpHandle, 0);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_InstallSetTargetDevice: %x", res);
+        gfx_printf(16, index, 0, "MCP_InstallSetTargetUsb: %x", res);
         waitButtonInput();
 
         IOS_Close(mcpHandle);
@@ -785,7 +855,7 @@ static void option_InstallWUP(void)
     }
 
     gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done!");
+    gfx_print(16, index, 0, "Done!");
     waitButtonInput();
 
     IOS_Close(mcpHandle);
@@ -793,106 +863,278 @@ static void option_InstallWUP(void)
 
 static void option_EditParental(void)
 {
-    int redraw = 1;
+    static const Menu parentalControlOptions[] = {
+        {"Back", {0} },
+        {"Disable", {0} },
+    };
+
+    int rval;
     int selected = 0;
 
-    int toggled = 0;
-    int rval = 0;
-
-    uint8_t cur_flag = 0;
-    uint8_t flag = 0;
+    gfx_clear(COLOR_BACKGROUND);
     while (1) {
-        readSystemEventFlag(&flag);
-        if (cur_flag != flag) {
-            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
-                selected = !selected;
-                redraw = 1;
-            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
-                if (selected) {
-                    rval = SCISetParentalEnable(0);
-                    toggled = 1;
-                    redraw = 1;
-                } else {
-                    return;
-                }
-            }
+        uint32_t index = 16 + 8 + 2 + 8;
+        gfx_set_font_color(COLOR_PRIMARY);
 
-            cur_flag = flag;
+        // draw current parental control info
+        uint8_t enabled = 0;
+        int res = SCIGetParentalEnable(&enabled);
+        if (res == 1) {
+            gfx_set_font_color(COLOR_PRIMARY);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Parental Controls: %s ",
+                enabled ? "Enabled" : "Disabled");
+        } else {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalEnable failed: %d  ", res);
         }
+        index += CHAR_SIZE_DRC_Y + 4;
 
-        if (redraw) {
-            gfx_clear(COLOR_BACKGROUND);
-            uint32_t index = 16 + 8 + 2 + 8;
-
-            uint8_t enabled = 0;
-            int res = SCIGetParentalEnable(&enabled);
-            if (res == 1) {
-                gfx_printf(16, index, 0, "Parental Controls: %s", enabled ? "Enabled" : "Disabled");
-            } else {
-                gfx_set_font_color(COLOR_ERROR);
-                gfx_printf(16, index, 0, "SCIGetParentalEnable failed: %d", res);
-            }
-            index += CHAR_SIZE_DRC_Y + 4;
-
+        char pin[5] = "";
+        res = SCIGetParentalPinCode(pin, sizeof(pin));
+        if (res == 1) {
             gfx_set_font_color(COLOR_PRIMARY);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Parental Pin Code: %s", pin);
+        } else {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalPinCode failed: %d  ", res);
+        }
+        index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
-            char pin[5] = "";
-            res = SCIGetParentalPinCode(pin, sizeof(pin));
-            if (res == 1) {
-                gfx_printf(16, index, 0, "Parental Pin Code: %s", pin);
-            } else {
-                gfx_set_font_color(COLOR_ERROR);
-                gfx_printf(16, index, 0, "SCIGetParentalPinCode failed: %d", res);
+        gfx_set_font_color(COLOR_PRIMARY);
+
+        selected = drawMenu("Edit Parental Controls",
+            parentalControlOptions, ARRAY_SIZE(parentalControlOptions), selected,
+            MenuFlag_NoClearScreen, 16, index);
+        index += (CHAR_SIZE_DRC_Y + 4) * ARRAY_SIZE(parentalControlOptions);
+
+        if (selected == 0)
+            return;
+
+        // Option 1: Disable the parental controls.
+        rval = SCISetParentalEnable(0);
+
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCISetParentalEnable(false): %d  ", rval);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        if (rval != 1) {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_print(16, index, GfxPrintFlag_ClearBG, "Error!  ");
+        } else {
+            gfx_set_font_color(COLOR_SUCCESS);
+            gfx_print(16, index, GfxPrintFlag_ClearBG, "Success!");
+        }
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
+}
+
+static const char region_tbl[7][4] = {
+    "JPN", "USA", "EUR", "AUS",
+    "CHN", "KOR", "TWN",
+};
+
+/**
+ * Get region code information.
+ * @param productArea_id Product area ID: 0-6
+ * @param gameRegion Bitfield of game regions
+ * @return 0 on success; negative on error
+ */
+static int getRegionInfo(int* productArea_id, int* gameRegion)
+{
+    MCPSysProdSettings sysProdSettings;
+
+    int mcpHandle = IOS_Open("/dev/mcp", 0);
+    if (mcpHandle < 0)
+        return mcpHandle;
+
+    int res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
+    IOS_Close(mcpHandle);
+    if (res < 0)
+        return res;
+
+    // productArea is a single region.
+    if (sysProdSettings.product_area == 0)
+        return -1;
+
+    if (productArea_id) {
+        *productArea_id = __builtin_ctz(sysProdSettings.product_area);
+    }
+    if (gameRegion) {
+        *gameRegion = sysProdSettings.game_region;
+    }
+    return 0;
+}
+
+static void option_DebugSystemRegion(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("Debug System Region");
+
+    uint32_t index = 16 + 8 + 2 + 8;
+
+    // Get the system region code, then check if a matching
+    // Wii U Menu is installed.
+    int productArea_id, gameRegion;
+    int res = getRegionInfo(&productArea_id, &gameRegion);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to get the system region code: %x", res);
+        waitButtonInput();
+        return;
+    }
+
+    // productArea
+    gfx_set_font_color(COLOR_PRIMARY);
+    if (productArea_id >= 0 && productArea_id < ARRAY_SIZE(region_tbl)) {
+        gfx_printf(16, index, 0, "System region code:   %s", region_tbl[productArea_id]);
+    } else {
+        gfx_printf(16, index, 0, "System region code:   %d", productArea_id);
+    }
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    // gameRegion
+    gfx_printf(16, index, 0, "Game region code:     %s %s %s %s %s %s",
+        (gameRegion & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
+        (gameRegion & MCP_REGION_USA)    ? region_tbl[1] : "---",
+        (gameRegion & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
+        (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
+        (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
+        (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
+    index += CHAR_SIZE_DRC_Y + 4;
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    // Wii U Menu path ('x' is at path[43])
+    char path[] = "/vol/storage_mlc01/sys/title/00050010/10040x00/code/app.xml";
+
+    // Check if Wii U Menu for this region exists.
+    int menu_matches_region = 0;
+    int menu_is_in_gameRegion = 0;
+    int menu_productArea_id = -1;
+    int menu_count = 0;
+    int fileHandle;
+
+    path[43] = productArea_id + '0';
+    res = FSA_OpenFile(fsaHandle, path, "r", &fileHandle);
+    if (res >= 0) {
+        menu_matches_region = 1;
+        menu_productArea_id = productArea_id;
+        menu_count = 1; // TODO: Check for others anyway?
+        FSA_CloseFile(fsaHandle, fileHandle);
+    }
+
+    if (!menu_matches_region) {
+        // Check if another Wii U Menu is installed.
+        for (int i = 0; i < ARRAY_SIZE(region_tbl); i++) {
+            if (i == productArea_id)
+                continue;
+
+            path[43] = '0' + i;
+            res = FSA_OpenFile(fsaHandle, path, "r", &fileHandle);
+            if (res >= 0) {
+                menu_count++;
+                menu_productArea_id = i;
+                FSA_CloseFile(fsaHandle, fileHandle);
             }
-            index += (CHAR_SIZE_DRC_Y + 4) * 2;
-
-            gfx_set_font_color(COLOR_PRIMARY);
-
-            // draw options
-
-            // Back button
-            gfx_draw_rect_filled(16 - 1, index - 1,
-                gfx_get_text_width("Back") + 2, CHAR_SIZE_DRC_Y + 2,
-                !selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-            gfx_set_font_color(!selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Back");
-
-            index += CHAR_SIZE_DRC_Y + 4;
-
-            // Disable button
-            gfx_draw_rect_filled(16 - 1, index - 1,
-                gfx_get_text_width("Disable") + 2, CHAR_SIZE_DRC_Y + 2,
-                selected ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-            gfx_set_font_color(selected ? COLOR_BACKGROUND : COLOR_PRIMARY);
-            gfx_printf(16, index, 0, "Disable");
-
-            index += CHAR_SIZE_DRC_Y + 4;
-
-            gfx_set_font_color(COLOR_PRIMARY);
-
-            if (toggled) {
-                index += CHAR_SIZE_DRC_Y + 4;
-                
-                gfx_printf(16, index, 0, "SCISetParentalEnable(false): %d", rval);
-                index += CHAR_SIZE_DRC_Y + 4;
-
-                if (rval != 1) {
-                    gfx_set_font_color(COLOR_ERROR);
-                    gfx_printf(16, index, 0, "Error!");
-                } else {
-                    gfx_set_font_color(COLOR_SUCCESS);
-                    gfx_printf(16, index, 0, "Success!");
-                }
-
-                index += CHAR_SIZE_DRC_Y + 4;
-            }
-
-            drawBars("Edit Parental Controls");
-            redraw = 0;
         }
     }
+
+    // Is the menu region in gameRegion?
+    menu_is_in_gameRegion = (gameRegion & (1U << menu_productArea_id));
+
+    gfx_print(16, index, 0, "Installed Wii U Menu: ");
+    const char* menu_region_str;
+    if (menu_count == 0 || menu_productArea_id < 0) {
+        menu_region_str = "NONE";
+        gfx_set_font_color(COLOR_ERROR);
+    } else if (menu_count > 1) {
+        menu_region_str = "MANY";
+        gfx_set_font_color(COLOR_ERROR);
+    } else {
+        menu_region_str = region_tbl[menu_productArea_id];
+        gfx_set_font_color(COLOR_SUCCESS);
+    }
+
+    gfx_print(16+(22*CHAR_SIZE_DRC_X), index, 0, menu_region_str);
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    if (menu_matches_region && menu_is_in_gameRegion) {
+        gfx_set_font_color(COLOR_PRIMARY);
+        gfx_print(16, index, 0, "The system region appears to be set correctly.");
+        waitButtonInput();
+        return;
+    }
+
+    // Show the errors.
+    if (menu_count == 0 || menu_productArea_id < 0) {
+        gfx_print(16, index, 0, "Could not find a Wii U Menu title installed on this system.");
+        waitButtonInput();
+        return;
+    } else if (menu_count > 1) {
+        gfx_print(16, index, 0, "Multiple Wii U Menus were found. Someone dun goofed...");
+        waitButtonInput();
+        return;
+    }
+
+    if (!menu_matches_region) {
+        gfx_printf(16, index, 0, "The %s region does not match the installed Wii U Menu.", "system");
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
+    if (!menu_is_in_gameRegion) {
+        gfx_printf(16, index, 0, "The %s region does not match the installed Wii U Menu.", "game");
+        index += CHAR_SIZE_DRC_Y + 4;
+    }
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    gfx_set_font_color(COLOR_PRIMARY);
+    gfx_printf(16, index, 0, "Repair the system by setting the region code to %s?", menu_region_str);
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    static const Menu fixRegionBrickOptions[] = {
+        {"Cancel", {0} },
+        {"Fix Region", {0} },
+    };
+    int selected = drawMenu("Debug System Region",
+        fixRegionBrickOptions, ARRAY_SIZE(fixRegionBrickOptions), 0,
+        MenuFlag_NoClearScreen, 16, index);
+    if (selected == 0)
+        return;
+    index += (CHAR_SIZE_DRC_Y*(ARRAY_SIZE(fixRegionBrickOptions)+1)) + 4;
+
+    // Attempt to set the region code.
+    int mcpHandle = IOS_Open("/dev/mcp", 0);
+    if (mcpHandle < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "IOS_Open(\"/dev/mcp\") failed: %x", mcpHandle);
+        waitButtonInput();
+        return;
+    }
+
+    MCPSysProdSettings sysProdSettings;
+    res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
+    if (res < 0) {
+        IOS_Close(mcpHandle);
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "MCP_GetSysProdSettings() failed: %x", res);
+        waitButtonInput();
+        return;
+    }
+
+    // Set both productArea and gameRegion to the Wii U Menu's region value.
+    // NOTE: productArea_id is a bit index, so it needs to be shifted into place.
+    sysProdSettings.product_area = (1U << menu_productArea_id);
+    sysProdSettings.game_region = (1U << menu_productArea_id);
+    res = MCP_SetSysProdSettings(mcpHandle, &sysProdSettings);
+    IOS_Close(mcpHandle);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "MCP_SetSysProdSettings() failed: %x", res);
+    } else {
+        gfx_set_font_color(COLOR_SUCCESS);
+        gfx_printf(16, index, 0, "System region set to %s successfully.", menu_region_str);
+        waitButtonInput();
+        return;
+    }
+
+    waitButtonInput();
 }
 
 static void option_SystemInformation(void)
@@ -909,7 +1151,7 @@ static void option_SystemInformation(void)
     void *dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x800, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Out of memory!");
+        gfx_print(16, index, 0, "Out of memory!");
         waitButtonInput();
         return;
     }
@@ -1004,47 +1246,28 @@ static void option_SystemInformation(void)
     index += CHAR_SIZE_DRC_Y + 4;
     index += CHAR_SIZE_DRC_Y + 4;
 
-    int productArea_id = 0;    // 0-6, matches title ID
-    MCPSysProdSettings sysProdSettings;
-    sysProdSettings.product_area = 0;
-    int mcpHandle = IOS_Open("/dev/mcp", 0);
-    if (mcpHandle >= 0) {
-        res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
-        if (res >= 0) {
-            static const char region_tbl[7][4] = {
-                "JPN", "USA", "EUR", "AUS",
-                "CHN", "KOR", "TWN",
-            };
+    int productArea_id = 0; // 0-6, matches title ID
+    int gameRegion;
+    res = getRegionInfo(&productArea_id, &gameRegion);
+    if (res >= 0) {
+        // productArea is a single region.
+        gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
+        index += CHAR_SIZE_DRC_Y + 4;
 
-            // productArea is a single region.
-            if (sysProdSettings.product_area != 0) {
-                productArea_id = __builtin_ctz(sysProdSettings.product_area);
-                if (productArea_id < 7) {
-                    gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
-                    index += CHAR_SIZE_DRC_Y + 4;
-                }
-            }
-
-            // gameRegion is multiple regions.
-            gfx_printf(16, index, 0, "gameRegion:  %s %s %s %s %s %s",
-                (sysProdSettings.game_region & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
-                (sysProdSettings.game_region & MCP_REGION_USA)    ? region_tbl[1] : "---",
-                (sysProdSettings.game_region & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
-                (sysProdSettings.game_region & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
-                (sysProdSettings.game_region & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
-                (sysProdSettings.game_region & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
-            index += CHAR_SIZE_DRC_Y + 4;
-        } else {
-            // Failed to get sys_prod settings.
-            // Clear the product area.
-            sysProdSettings.product_area = 0;
-        }
-        IOS_Close(mcpHandle);
+        // gameRegion is multiple regions.
+        gfx_printf(16, index, 0, "gameRegion:  %s %s %s %s %s %s",
+            (gameRegion & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
+            (gameRegion & MCP_REGION_USA)    ? region_tbl[1] : "---",
+            (gameRegion & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
+            (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
+            (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
+            (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
+        index += CHAR_SIZE_DRC_Y + 4;
     }
 
     // Wii U Menu version
-    // FIXME: CAT-I has all three region versions installed.
-    // Need to get the actual productArea from sys_prod.xml.
+    // NOTE: If productArea doesn't match the installed Wii U Menu,
+    // the Wii U Menu version won't be displayed.
 #define VERSION_BIN_MAGIC_STR "VER\0"
 #define VERSION_BIN_MAGIC_U32 0x56455200
     typedef struct _version_bin_t {
@@ -1075,7 +1298,7 @@ static void option_SystemInformation(void)
             // Did we find a valid version.bin?
             if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
                 // Found a valid version.bin.
-                gfx_printf(16, index, 0, "Wii U Menu version: %u.%u.%u %c",
+                gfx_printf(16, index, 0, "Wii U Menu version: %lu.%lu.%lu %c",
                     version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
                 index += CHAR_SIZE_DRC_Y + 4;
             }
@@ -1149,51 +1372,13 @@ int menuThread(void* arg)
         printf("Failed to open FSA: %x\n", fsaHandle);
     }
 
-    int redraw = 1;
     int selected = 0;
-
-    uint8_t cur_flag = 0;
-    uint8_t flag = 0;
     while (1) {
-        readSystemEventFlag(&flag);
-        if (cur_flag != flag) {
-            if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
-                selected++;
-
-                if (selected == numMainMenuOptions) {
-                    selected = 0;
-                }
-
-                redraw = 1;
-            } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
-                if (mainMenuOptions[selected].callback) {
-                    mainMenuOptions[selected].callback();
-                    redraw = 1;
-                }
-            }
-
-            cur_flag = flag;
-        }
-
-        if (redraw) {
-            gfx_clear(COLOR_BACKGROUND);
-
-            // draw options
-            uint32_t index = 16+8+2+8;
-            for (int i = 0; i < numMainMenuOptions; i++) {
-                gfx_draw_rect_filled(16 - 1, index - 1,
-                    gfx_get_text_width(mainMenuOptions[i].name) + 2, CHAR_SIZE_DRC_Y + 2,
-                    selected == i ? COLOR_PRIMARY : COLOR_BACKGROUND);
-
-                gfx_set_font_color(selected == i ? COLOR_BACKGROUND : COLOR_PRIMARY);
-                gfx_printf(16, index, 0, mainMenuOptions[i].name);
-
-                index += CHAR_SIZE_DRC_Y + 4;
-            }
-
-            gfx_set_font_color(COLOR_PRIMARY);
-            drawBars("Wii U Recovery Menu v0.2 by GaryOderNichts");
-            redraw = 0;
+        selected = drawMenu("Wii U Recovery Menu v0.2 by GaryOderNichts",
+            mainMenuOptions, ARRAY_SIZE(mainMenuOptions), selected,
+            0, 16, 16+8+2+8);
+        if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {
+            mainMenuOptions[selected].callback();
         }
     }
 

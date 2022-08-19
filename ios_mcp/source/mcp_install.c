@@ -40,7 +40,7 @@ int MCP_InstallGetInfo(int handle, const char* path, MCPInstallInfo* out_info)
     return res;
 }
 
-int MCP_SetTargetUsb(int handle, int target)
+int MCP_InstallSetTargetUsb(int handle, int target)
 {
     uint32_t* buf = allocIoBuf(4);
     memcpy(buf, &target, 4);

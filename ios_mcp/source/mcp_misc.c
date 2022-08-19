@@ -32,3 +32,18 @@ int MCP_GetSysProdSettings(int handle, MCPSysProdSettings* out_sysProdSettings)
 
     return res;
 }
+
+int MCP_SetSysProdSettings(int handle, const MCPSysProdSettings* sysProdSettings)
+{
+    uint8_t* buf = allocIoBuf(sizeof(IOSVec_t) + sizeof(*sysProdSettings));
+    memcpy(&buf[sizeof(IOSVec_t)], sysProdSettings, sizeof(*sysProdSettings));
+
+    IOSVec_t* vecs = (IOSVec_t*)buf;
+    vecs[0].ptr = buf + sizeof(IOSVec_t);
+    vecs[0].len = sizeof(*sysProdSettings);
+
+    int res = IOS_Ioctlv(handle, 0x41, 1, 0, vecs);
+    freeIoBuf(buf);
+
+    return res;
+}
