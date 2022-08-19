@@ -2,6 +2,13 @@
 
 #include <stdint.h>
 
+// some common colors used throughout the application
+#define COLOR_BACKGROUND    0x000000ff
+#define COLOR_PRIMARY       0xffffffff
+#define COLOR_SECONDARY     0x3478e4ff
+#define COLOR_SUCCESS       0x00ff00ff
+#define COLOR_ERROR         0xff0000ff
+
 // visible screen sizes
 #define SCREEN_WIDTH 854
 #define SCREEN_HEIGHT 480
@@ -26,8 +33,8 @@ void gfx_set_font_color(uint32_t col);
 uint32_t gfx_get_text_width(const char* string);
 
 typedef enum GfxPrintFlags {
-	GfxPrintFlag_AlignRight		= (1U << 0),
-	GfxPrintFlag_ClearBG		= (1U << 1),
+    GfxPrintFlag_AlignRight     = (1U << 0),
+    GfxPrintFlag_ClearBG        = (1U << 1),
 } GfxPrintFlags;
 
 void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* string);

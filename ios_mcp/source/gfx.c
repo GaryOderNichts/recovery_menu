@@ -191,7 +191,7 @@ void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* strin
         x -= gfx_get_text_width(string);
     }
     if (gfxPrintFlags & GfxPrintFlag_ClearBG) {
-        gfx_draw_rect_filled(x, y, CHAR_SIZE_DRC_X * gfx_get_text_width(string), CHAR_SIZE_DRC_Y, 0);
+        gfx_draw_rect_filled(x, y, SCREEN_WIDTH, CHAR_SIZE_DRC_Y, COLOR_BACKGROUND);
     }
 
     for (; *string != '\0'; string++, x += CHAR_SIZE_DRC_X) {

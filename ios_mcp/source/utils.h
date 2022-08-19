@@ -9,16 +9,18 @@
  * Reference: http://stackoverflow.com/questions/8018843/macro-definition-array-size
  */
 #define ARRAY_SIZE(x) \
-	(((sizeof(x) / sizeof(x[0]))) / \
-		(size_t)(!(sizeof(x) % sizeof(x[0]))))
+    (((sizeof(x) / sizeof(x[0]))) / \
+        (size_t)(!(sizeof(x) % sizeof(x[0]))))
 
-#define SYSTEM_EVENT_FLAG_WAKE1            0x01
-#define SYSTEM_EVENT_FLAG_WAKE0            0x02
-#define SYSTEM_EVENT_FLAG_BT_INTERRUPT     0x04
-#define SYSTEM_EVENT_FLAG_TIMER_SIGNAL     0x08
-#define SYSTEM_EVENT_FLAG_DISC_INSERT      0x10
-#define SYSTEM_EVENT_FLAG_EJECT_BUTTON     0x20
-#define SYSTEM_EVENT_FLAG_POWER_BUTTON     0x40
+enum {
+    SYSTEM_EVENT_FLAG_WAKE1            = 1 << 0,
+    SYSTEM_EVENT_FLAG_WAKE0            = 1 << 1,
+    SYSTEM_EVENT_FLAG_BT_INTERRUPT     = 1 << 2,
+    SYSTEM_EVENT_FLAG_TIMER_SIGNAL     = 1 << 3,
+    SYSTEM_EVENT_FLAG_DISC_INSERT      = 1 << 4,
+    SYSTEM_EVENT_FLAG_EJECT_BUTTON     = 1 << 5,
+    SYSTEM_EVENT_FLAG_POWER_BUTTON     = 1 << 6,
+};
 
 enum {
     // 1280x720 XRGB framebuffer, outputs @720p

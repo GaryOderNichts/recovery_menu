@@ -31,12 +31,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#define COLOR_BACKGROUND    0x000000ff
-#define COLOR_PRIMARY       0xffffffff
-#define COLOR_SECONDARY     0x3478e4ff
-#define COLOR_SUCCESS       0x00ff00ff
-#define COLOR_ERROR         0xff0000ff
-
 static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
 static void option_DumpOtpAndSeeprom(void);
@@ -347,8 +341,7 @@ static void option_DumpSyslogs(void)
             continue;
         }
 
-        gfx_draw_rect_filled(0, index, SCREEN_WIDTH, 8, COLOR_BACKGROUND);
-        gfx_printf(16, index, 0, "Copying %s...", dir_entry.name);
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Copying %s...", dir_entry.name);
 
         snprintf(src_path, sizeof(src_path), "/vol/system/logs/" "%s", dir_entry.name);
         snprintf(dst_path, sizeof(dst_path), "/vol/storage_recovsd/logs/" "%s", dir_entry.name);
@@ -357,7 +350,7 @@ static void option_DumpSyslogs(void)
         if (res < 0) {
             index += CHAR_SIZE_DRC_Y + 4;
             gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, 0, "Failed to copy %s: %x", dir_entry.name, res);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to copy %s: %x", dir_entry.name, res);
             waitButtonInput();
 
             FSA_CloseDir(fsaHandle, dir_handle);
@@ -513,8 +506,7 @@ static void option_StartWupserver(void)
         }
 
         usleep(1000 * 1000);
-        gfx_draw_rect_filled(0, index, SCREEN_WIDTH, 8, COLOR_BACKGROUND);
-        gfx_printf(16, index, 0, "Waiting for network connection... %ds", 4 - i);
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
     }
 
     index += CHAR_SIZE_DRC_Y + 4;
@@ -881,11 +873,11 @@ static void option_EditParental(void)
         int res = SCIGetParentalEnable(&enabled);
         if (res == 1) {
             gfx_set_font_color(COLOR_PRIMARY);
-            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Parental Controls: %s ",
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Parental Controls: %s",
                 enabled ? "Enabled" : "Disabled");
         } else {
             gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalEnable failed: %d  ", res);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalEnable failed: %d", res);
         }
         index += CHAR_SIZE_DRC_Y + 4;
 
@@ -896,7 +888,7 @@ static void option_EditParental(void)
             gfx_printf(16, index, GfxPrintFlag_ClearBG, "Parental Pin Code: %s", pin);
         } else {
             gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalPinCode failed: %d  ", res);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "SCIGetParentalPinCode failed: %d", res);
         }
         index += (CHAR_SIZE_DRC_Y + 4) * 2;
 
@@ -905,7 +897,7 @@ static void option_EditParental(void)
         selected = drawMenu("Edit Parental Controls",
             parentalControlOptions, ARRAY_SIZE(parentalControlOptions), selected,
             MenuFlag_NoClearScreen, 16, index);
-        index += (CHAR_SIZE_DRC_Y + 4) * ARRAY_SIZE(parentalControlOptions);
+        index += (CHAR_SIZE_DRC_Y + 4) * (ARRAY_SIZE(parentalControlOptions) + 1);
 
         if (selected == 0)
             return;
