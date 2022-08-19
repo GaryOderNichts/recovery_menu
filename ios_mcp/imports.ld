@@ -28,6 +28,9 @@ PROVIDE(IOS_CreateMessageQueue = 0x0505684c);
 PROVIDE(IOS_DestroyMessageQueue = 0x05056854);
 PROVIDE(IOS_ReceiveMessage = 0x0505686c);
 
+PROVIDE(IOS_CheckDebugMode = 0x050568ec);
+PROVIDE(IOS_ReadOTP = 0x050568fc);
+
 PROVIDE(IOS_HeapAlloc = 0x05056924);
 PROVIDE(IOS_HeapAllocAligned = 0x0505692c);
 PROVIDE(IOS_HeapFree = 0x05056934);

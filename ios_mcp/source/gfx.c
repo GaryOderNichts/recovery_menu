@@ -29,7 +29,7 @@ int gfx_init_font(void)
     if (font)
         return 0;
 
-    font = IOS_HeapAlloc(0xcaff, sizeof(*font));
+    font = IOS_HeapAlloc(LOCAL_PROCESS_HEAP_ID, sizeof(*font));
     if (!font) {
         printf("Memory allocation for the font buffer failed!\n");
         return -1;
@@ -41,7 +41,7 @@ int gfx_init_font(void)
     if (res != LZO_E_OK || data_len != sizeof(*font)) {
         // LZO decompression failed.
         printf("lzo1x_decompress() failed: res == %d, data_len == %lu\n", res, data_len);
-        IOS_HeapFree(0xcaff, font);
+        IOS_HeapFree(LOCAL_PROCESS_HEAP_ID, font);
         font = NULL;
         return -2;
     }

@@ -217,25 +217,6 @@ static void waitButtonInput(void)
     }
 }
 
-static int isSystemUsingDebugKeyset(void)
-{
-    int ret = 0;
-
-    // Check OTP to see if this system is using the Debug keyset.
-    // NOTE: Includes "Factory" as well.
-    uint8_t* const dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
-    if (!dataBuffer)
-        return ret;
-
-    int res = readOTP(dataBuffer, 0x400);
-    if (res >= 0) {
-        ret = ((dataBuffer[0x080] & 0x18) != 0x10);
-    }
-
-    IOS_HeapFree(0xcaff, dataBuffer);
-    return ret;
-}
-
 static void option_SetColdbootTitle(void)
 {
     static const Menu coldbootTitleOptions[] = {
@@ -250,8 +231,8 @@ static void option_SetColdbootTitle(void)
         {"Kiosk Menu        ", {.tid = 0x000500101FA81000}},
     };
 
-    // Only print the non-retail options if the keyset is debug.
-    const int option_count = (isSystemUsingDebugKeyset() ? 7 : 4);
+    // Only print the non-retail options if the system is in debug mode.
+    const int option_count = ((IOS_CheckDebugMode() == 0) ? 7 : 4);
 
     int rval;
     uint64_t newtid = 0;
@@ -375,7 +356,7 @@ static void option_DumpOtpAndSeeprom(void)
     gfx_print(16, index, 0, "Creating otp.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
 
-    void* dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x400, 0x40);
+    void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x400, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Out of memory!");
@@ -390,21 +371,21 @@ static void option_DumpOtpAndSeeprom(void)
         gfx_printf(16, index, 0, "Failed to create otp.bin: %x", res);
         waitButtonInput();
 
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
 
     gfx_print(16, index, 0, "Reading OTP...");
     index += CHAR_SIZE_DRC_Y + 4;
 
-    res = readOTP(dataBuffer, 0x400);
+    res = IOS_ReadOTP(0, dataBuffer, 0x400);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, otpHandle);
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
 
@@ -418,7 +399,7 @@ static void option_DumpOtpAndSeeprom(void)
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, otpHandle);
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
 
@@ -434,7 +415,7 @@ static void option_DumpOtpAndSeeprom(void)
         gfx_printf(16, index, 0, "Failed to create seeprom.bin: %x", res);
         waitButtonInput();
 
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
 
@@ -448,7 +429,7 @@ static void option_DumpOtpAndSeeprom(void)
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, seepromHandle);
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
 
@@ -462,7 +443,7 @@ static void option_DumpOtpAndSeeprom(void)
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, seepromHandle);
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
 
@@ -471,7 +452,7 @@ static void option_DumpOtpAndSeeprom(void)
     waitButtonInput();
 
     FSA_CloseFile(fsaHandle, seepromHandle);
-    IOS_HeapFree(0xcaff, dataBuffer);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 }
 
 static void option_StartWupserver(void)
@@ -657,7 +638,7 @@ static void option_LoadNetConf(void)
         return;
     }
 
-    char* cfgBuffer = (char*) IOS_HeapAllocAligned(0xcaff, stat.size + 1, 0x40);
+    char* cfgBuffer = (char*) IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, stat.size + 1, 0x40);
     if (!cfgBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Out of memory!");
@@ -675,7 +656,7 @@ static void option_LoadNetConf(void)
         gfx_printf(16, index, 0, "Failed to read file: %x", res);
         waitButtonInput();
 
-        IOS_HeapFree(0xcaff, cfgBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
         FSA_CloseFile(fsaHandle, cfgHandle);
         return;
     }
@@ -720,7 +701,7 @@ static void option_LoadNetConf(void)
         gfx_printf(16, index, 0, "Failed to apply configuration: %x", res);
         waitButtonInput();
 
-        IOS_HeapFree(0xcaff, cfgBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
         FSA_CloseFile(fsaHandle, cfgHandle);
         return;
     }
@@ -731,7 +712,7 @@ static void option_LoadNetConf(void)
 
     waitButtonInput();
 
-    IOS_HeapFree(0xcaff, cfgBuffer);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
     FSA_CloseFile(fsaHandle, cfgHandle);
 }
 
@@ -1140,7 +1121,7 @@ static void option_SystemInformation(void)
     // 0x000-0x3FF: OTP
     // 0x400-0x5FF: SEEPROM
     // 0x600-0x7FF: misc for version.bin
-    void *dataBuffer = IOS_HeapAllocAligned(0xcaff, 0x800, 0x40);
+    void *dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x800, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Out of memory!");
@@ -1150,11 +1131,11 @@ static void option_SystemInformation(void)
     uint8_t* const otp = (uint8_t*)dataBuffer;
     uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
 
-    int res = readOTP((void*)otp, 0x400);
+    int res = IOS_ReadOTP(0, otp, 0x400);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
         return;
     }
@@ -1163,7 +1144,7 @@ static void option_SystemInformation(void)
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
-        IOS_HeapFree(0xcaff, dataBuffer);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
         return;
     }
@@ -1302,7 +1283,7 @@ static void option_SystemInformation(void)
     // - gameRegion is set to 0 on all systems I've used.
     // TODO: Use MCP_GetSysProdSettings()?
 
-    IOS_HeapFree(0xcaff, dataBuffer);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
     waitButtonInput();
 }
 

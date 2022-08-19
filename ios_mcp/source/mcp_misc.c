@@ -5,14 +5,14 @@
 
 static void* allocIoBuf(uint32_t size)
 {
-    void* ptr = IOS_HeapAlloc(0xcaff, size);
+    void* ptr = IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, size);
     memset(ptr, 0, size);
     return ptr;
 }
 
 static void freeIoBuf(void* ptr)
 {
-    IOS_HeapFree(0xcaff, ptr);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, ptr);
 }
 
 int MCP_GetSysProdSettings(int handle, MCPSysProdSettings* out_sysProdSettings)

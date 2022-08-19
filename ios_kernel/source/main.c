@@ -21,8 +21,6 @@ int kernel_syscall_0x81(int type, uint32_t address, uint32_t value)
         res = *(volatile uint32_t*) address;
     } else if (type == 1) { // kernWrite32
         *(volatile uint32_t*) address = value;
-    } else if (type == 2) { // readOtp
-        res = readOTP(0, (void*) address, value);
     }
 
     set_domain_register(domainAccessPermissions[currentThreadContext->pid]);
@@ -68,6 +66,9 @@ int _main(void* arg)
 
     // replace custom kernel syscall
     *(volatile uint32_t*) 0x0812cd2c = ARM_B(0x0812cd2c, kernel_syscall_0x81);
+    
+    // patch IOS_ReadOTP to allow read from all processes
+    *(volatile uint32_t*) 0x0812037c = 0xe15c000c; // cmp r12, r12
 
     restore_mmu(control_register);
 

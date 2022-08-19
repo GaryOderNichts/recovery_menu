@@ -3,7 +3,7 @@
 
 static void* allocIobuf()
 {
-    void* ptr = IOS_HeapAlloc(0xcaff, 0x260);
+    void* ptr = IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, 0x260);
 
     memset(ptr, 0, 0x260);
 
@@ -12,7 +12,7 @@ static void* allocIobuf()
 
 static void freeIobuf(void* ptr)
 {
-    IOS_HeapFree(0xcaff, ptr);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, ptr);
 }
 
 int bspWrite(const char* entity, uint32_t instance, const char* attribute, uint32_t size, const void* buffer)

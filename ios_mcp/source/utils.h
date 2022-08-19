@@ -51,8 +51,6 @@ uint32_t kernRead32(uint32_t address);
 
 void kernWrite32(uint32_t address, uint32_t value);
 
-int readOTP(void* buf, uint32_t size);
-
 int EEPROM_Read(uint16_t offset, uint16_t num, uint16_t* buf);
 
 int resetPPC(void);

@@ -30,16 +30,16 @@ int netconf_close(void)
 
 static void* allocIobuf(uint32_t size)
 {
-    void* ptr = IOS_HeapAlloc(0xcaff, size);
+    void* ptr = IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, size);
 
-    memset(ptr, 0x00, size);
+    memset(ptr, 0, size);
 
     return ptr;
 }
 
 static void freeIobuf(void* ptr)
 {
-    IOS_HeapFree(0xcaff, ptr);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, ptr);
 }
 
 static int netconf_get_if_data(uint16_t* if_buf, uint16_t* data)

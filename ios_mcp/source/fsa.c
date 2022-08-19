@@ -6,16 +6,16 @@
 
 static void* allocIobuf()
 {
-    void* ptr = IOS_HeapAlloc(0xcaff, 0x828);
+    void* ptr = IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, 0x828);
 
-    memset(ptr, 0x00, 0x828);
+    memset(ptr, 0, 0x828);
 
     return ptr;
 }
 
 static void freeIobuf(void* ptr)
 {
-    IOS_HeapFree(0xcaff, ptr);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, ptr);
 }
 
 int FSA_Mount(int fd, const char* device_path, char* volume_path, uint32_t flags, char* arg_string, int arg_string_len)

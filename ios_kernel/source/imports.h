@@ -10,6 +10,9 @@
 #define THUMB_B(addr, func)     ((0xE000 | ((((uint32_t)(func) - (uint32_t)(addr) - 4) >> 1) & 0x7FF)))                                                               // +-2KB
 #define THUMB_BL(addr, func)    ((0xF000F800 | ((((uint32_t)(func) - (uint32_t)(addr) - 4) >> 1) & 0x0FFF)) | ((((uint32_t)(func) - (uint32_t)(addr) - 4) << 4) & 0x7FFF000))   // +-4MB
 
+#define LOCAL_PROCESS_HEAP_ID 0xcafe
+#define CROSS_PROCESS_HEAP_ID 0xcaff
+
 typedef struct {
     void* ptr;
     uint32_t len;

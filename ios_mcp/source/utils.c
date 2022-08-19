@@ -16,11 +16,6 @@ void kernWrite32(uint32_t address, uint32_t value)
     IOS_Syscall0x81(1, address, value);
 }
 
-int readOTP(void* buf, uint32_t size)
-{
-    return IOS_Syscall0x81(2, (uint32_t) buf, size);
-}
-
 int EEPROM_Read(uint16_t offset, uint16_t num, uint16_t* buf)
 {
     if (offset + num > 0x100) {
@@ -71,7 +66,7 @@ int copy_file(int fsaFd, const char* src, const char* dst)
         return res;
     }
 
-    void* dataBuffer = IOS_HeapAllocAligned(0xcaff, COPY_BUFFER_SIZE, 0x40);
+    void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, COPY_BUFFER_SIZE, 0x40);
     if (!dataBuffer) {
         FSA_CloseFile(fsaFd, readHandle);
         FSA_CloseFile(fsaFd, writeHandle);
@@ -84,7 +79,7 @@ int copy_file(int fsaFd, const char* src, const char* dst)
         }
     }
 
-    IOS_HeapFree(0xcaff, dataBuffer);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
     FSA_CloseFile(fsaFd, writeHandle);
     FSA_CloseFile(fsaFd, readHandle);
 

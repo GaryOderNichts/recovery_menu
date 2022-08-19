@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define LOCAL_PROCESS_HEAP_ID 0xcafe
+#define CROSS_PROCESS_HEAP_ID 0xcaff
+
 typedef struct {
     void* ptr;
     uint32_t len;
@@ -49,6 +52,9 @@ int IOS_GetThreadPriority(int threadid);
 int IOS_CreateMessageQueue(uint32_t* ptr, uint32_t n_msgs);
 int IOS_DestroyMessageQueue(int queueid);
 int IOS_ReceiveMessage(int queueid, uint32_t* message, uint32_t flags);
+
+int IOS_CheckDebugMode(void);
+int IOS_ReadOTP(int index, void* buffer, uint32_t size);
 
 void* IOS_HeapAlloc(uint32_t heap, uint32_t size);
 void* IOS_HeapAllocAligned(uint32_t heap, uint32_t size, uint32_t alignment);
