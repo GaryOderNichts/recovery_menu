@@ -27,6 +27,7 @@
 #include "ccr.h"
 #include "sci.h"
 #include "mcp_misc.h"
+#include "mdinfo.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -1347,12 +1348,78 @@ static void option_SystemInformation(void)
         }
     }
 
-    // TODO: productArea, gameRegion, IOSU version, Wii U Menu version
-    // - productArea is set to 2 on my CAT-I that's actually set to USA.
-    // - gameRegion is set to 0 on all systems I've used.
-    // TODO: Use MCP_GetSysProdSettings()?
-
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    // Read info about IOS-FS' memory devices
+    res = MDReadInfo();
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read memory device info: %x", res);
+        waitButtonInput();
+        return;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        MDBlkDrv* drv = MDGetBlkDrv(i);
+        // Ignore unregistered drivers and the SD Card
+        if (!drv->registered || drv->params.device_type == SAL_DEVICE_TYPE_SD_CARD) {
+            continue;
+        }
+
+        const char* deviceType = "Unknown";
+        if (drv->params.device_type == SAL_DEVICE_TYPE_MLC) {
+            deviceType = "MLC";
+        }
+
+        gfx_printf(16, index, 0, "Memory device %d (Type 0x%lx '%s'):", i, drv->params.device_type, deviceType);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        const uint16_t mid = drv->params.mid_prv >> 16;
+
+        // Find the manufacturer based on the manufacturer ID
+        // If you have a console with a manufacturer not listed here, please make a PR
+        const char* manufacturer = "Unknown";
+        if (mid == 0x11) {
+            manufacturer = "Toshiba";
+        } else if (mid == 0x15) {
+            manufacturer = "Samsung";
+        } else if (mid == 0x90) {
+            manufacturer = "Hynix";
+        }
+
+        gfx_printf(16, index, 0, "  Manufacturer ID: 0x%02x (%s)", mid, manufacturer);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        uint16_t prv = drv->params.mid_prv & 0xff;
+
+        gfx_printf(16, index, 0, "  Product revision: 0x%02x (%d.%d)", prv, prv >> 4, prv & 0xf);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        gfx_printf(16, index, 0, "  Product name: %s", drv->params.name1);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        uint32_t totalSizeMiB = (uint32_t) ((drv->params.numBlocks * drv->params.blockSize) / 1024ull / 1024ull);
+        gfx_printf(16, index, 0, "  Size: %llu x %lu (%lu MiB)", drv->params.numBlocks, drv->params.blockSize, totalSizeMiB);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        // Display the full CID and CSD registers
+        uint32_t cid[4];
+        res = MDGetCID(drv->deviceId, cid);
+        if (res == 0) {
+            gfx_printf(16, index, 0, "  CID: %08lx%08lx%08lx%08lx", cid[0], cid[1], cid[2], cid[3]);
+            index += CHAR_SIZE_DRC_Y + 4;
+        }
+
+        uint32_t csd[4];
+        res = MDGetCSD(drv->deviceId, csd);
+        if (res == 0) {
+            gfx_printf(16, index, 0, "  CSD: %08lx%08lx%08lx%08lx", csd[0], csd[1], csd[2], csd[3]);
+            index += CHAR_SIZE_DRC_Y + 4;
+        }
+    }
+
     waitButtonInput();
 }
 
