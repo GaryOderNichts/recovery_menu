@@ -1494,7 +1494,7 @@ int menuThread(void* arg)
 
     int selected = 0;
     while (1) {
-        selected = drawMenu("Wii U Recovery Menu v0.3 by GaryOderNichts",
+        selected = drawMenu("Wii U Recovery Menu v0.4 by GaryOderNichts",
             mainMenuOptions, ARRAY_SIZE(mainMenuOptions), selected,
             0, 16, 16+8+2+8);
         if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {
