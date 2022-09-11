@@ -70,6 +70,9 @@ int _main(void* arg)
     // patch IOS_ReadOTP to allow read from all processes
     *(volatile uint32_t*) 0x0812037c = 0xe15c000c; // cmp r12, r12
 
+    // patch MCP_SetSysProdSettings debug mode check
+    *(volatile uint32_t*) (0x05024648 - 0x05000000 + 0x081c0000) = 0x20002000; // mov r0, #0; mov r0, #0
+
     restore_mmu(control_register);
 
     // invalidate all cache
