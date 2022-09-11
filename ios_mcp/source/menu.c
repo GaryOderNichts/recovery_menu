@@ -1100,13 +1100,14 @@ static void option_DebugSystemRegion(void)
     index += CHAR_SIZE_DRC_Y + 4;
 
     if (menu_matches_region && menu_is_in_gameRegion) {
-        gfx_set_font_color(COLOR_PRIMARY);
+        gfx_set_font_color(COLOR_SUCCESS);
         gfx_print(16, index, 0, "The system region appears to be set correctly.");
         waitButtonInput();
         return;
     }
 
     // Show the errors.
+    gfx_set_font_color(COLOR_ERROR);
     if (menu_count == 0 || menu_productArea_id < 0) {
         gfx_print(16, index, 0, "Could not find a Wii U Menu title installed on this system.");
         waitButtonInput();
