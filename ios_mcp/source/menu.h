@@ -33,6 +33,7 @@ int menuThread(void* arg);
 typedef enum {
     MenuFlag_ShowTID        = (1U << 0),
     MenuFlag_NoClearScreen  = (1U << 1),
+    MenuFlag_ShowGitHubLink = (1U << 2),
 } MenuFlags;
 
 typedef struct Menu {

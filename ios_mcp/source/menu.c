@@ -149,6 +149,18 @@ int drawMenu(const char* title, const Menu* menu, size_t count,
         index += CHAR_SIZE_DRC_Y + 4;
     }
 
+    if (flags & MenuFlag_ShowGitHubLink) {
+        static const int ypos = SCREEN_HEIGHT - (CHAR_SIZE_DRC_Y * 3);
+        gfx_set_font_color(COLOR_PRIMARY);
+        static const char link_prefix[] = "Check out the GitHub repository at:";
+        gfx_print(16, ypos, 0, link_prefix);
+        static const int xpos = 16 + CHAR_SIZE_DRC_X * sizeof(link_prefix);
+        gfx_set_font_color(COLOR_LINK);
+        // TODO: Underline attribute instead of double-printing?
+        gfx_print(xpos, ypos, 0, "https://github.com/GaryOderNichts/recovery_menu");
+        gfx_print(xpos, ypos, 0, "_______________________________________________");
+    }
+
     uint8_t cur_flag = 0;
     uint8_t flag = 0;
     while (1) {
@@ -1093,7 +1105,7 @@ int menuThread(void* arg)
     while (1) {
         selected = drawMenu("Wii U Recovery Menu v" VERSION_STRING " by GaryOderNichts",
             mainMenuOptions, ARRAY_SIZE(mainMenuOptions), selected,
-            0, 16, 16+8+2+8);
+            MenuFlag_ShowGitHubLink, 16, 16+8+2+8);
         if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {
             mainMenuOptions[selected].callback();
         }
