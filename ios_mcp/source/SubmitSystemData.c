@@ -139,6 +139,8 @@ void option_SubmitSystemData(void)
     pd->boardType = seeprom[0x21];
     pd->boardRevision = seeprom[0x22];
     pd->bootSource = seeprom[0x23];
+    pd->ddr3Size = seeprom[0x24];
+    pd->ddr3Speed = seeprom[0x25];
     pd->sataDevice = seeprom[0x2C];
     pd->consoleType = seeprom[0x2D];
 
