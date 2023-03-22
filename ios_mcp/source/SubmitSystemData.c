@@ -206,74 +206,14 @@ void option_SubmitSystemData(void)
         }
     }
 
-    // Initialize the network.
-    // TODO: Combine network init code with wupserver network init code.
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("Submit System Data");
+
+    // Initialize the network.
     index = 16 + 8 + 2 + 8;
-    gfx_print(16, index, 0, "Initializing netconf...");
-    index += CHAR_SIZE_DRC_Y;
-
-    res = netconf_init();
-    if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
-        return;
-    }
-
-    gfx_printf(16, index, 0, "Waiting for network connection... %ds", 5);
-
-    NetConfInterfaceTypeEnum interface = 0xff;
-    for (int i = 0; i < 5; i++) {
-        if (netconf_get_if_linkstate(NET_CFG_INTERFACE_TYPE_WIFI) == NET_CFG_LINK_STATE_UP) {
-            interface = NET_CFG_INTERFACE_TYPE_WIFI;
-            break;
-        }
-
-        if (netconf_get_if_linkstate(NET_CFG_INTERFACE_TYPE_ETHERNET) == NET_CFG_LINK_STATE_UP) {
-            interface = NET_CFG_INTERFACE_TYPE_ETHERNET;
-            break;
-        }
-
-        usleep(1000 * 1000);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
-    }
-
-    index += CHAR_SIZE_DRC_Y;
-
-    if (interface == 0xff) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "No network connection!");
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
-        return;
-    }
-
-    gfx_printf(16, index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
-    index += CHAR_SIZE_DRC_Y;
-
-    uint8_t ip_address[4];
-    res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get IP address: %x", res);
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
-        return;
-    }
-
-    gfx_printf(16, index, 0, "IP address: %u.%u.%u.%u",
-        ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-    index += CHAR_SIZE_DRC_Y;
-
-    // Initialize sockets.
-    // NOTE: Not shutting down sockets later in case wupserver is active.
-    res = socketInit();
-    if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize socketlib: %x", res);
+    index = initNetconf(index);
+    if (index == 0) {
+        // An error occurred while initializing netconf.
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
         return;

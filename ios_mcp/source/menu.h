@@ -64,6 +64,13 @@ int drawMenu(const char* title, const Menu* menu, size_t count,
  */
 void waitButtonInput(void);
 
+/**
+ * Initialize the network configuration.
+ * @param index Starting Y position.
+ * @return Next Y position, or 0 if an error occurred.
+ */
+uint32_t initNetconf(uint32_t index);
+
 /* Region code string table */
 static const char region_tbl[7][4] = {
     "JPN", "USA", "EUR", "AUS",

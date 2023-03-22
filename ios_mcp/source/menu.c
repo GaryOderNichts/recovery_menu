@@ -452,6 +452,78 @@ static void option_DumpOtpAndSeeprom(void)
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 }
 
+/**
+ * Initialize the network configuration.
+ * @param index Starting Y position.
+ * @return Next Y position, or 0 if an error occurred.
+ */
+uint32_t initNetconf(uint32_t index)
+{
+    gfx_print(16, index, 0, "Initializing netconf...");
+    index += CHAR_SIZE_DRC_Y;
+
+    int res = netconf_init();
+    if (res <= 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
+        waitButtonInput();
+        return 0;
+    }
+
+    gfx_printf(16, index, 0, "Waiting for network connection... %ds", 5);
+
+    NetConfInterfaceTypeEnum interface = 0xff;
+    for (int i = 0; i < 5; i++) {
+        if (netconf_get_if_linkstate(NET_CFG_INTERFACE_TYPE_WIFI) == NET_CFG_LINK_STATE_UP) {
+            interface = NET_CFG_INTERFACE_TYPE_WIFI;
+            break;
+        }
+
+        if (netconf_get_if_linkstate(NET_CFG_INTERFACE_TYPE_ETHERNET) == NET_CFG_LINK_STATE_UP) {
+            interface = NET_CFG_INTERFACE_TYPE_ETHERNET;
+            break;
+        }
+
+        usleep(1000 * 1000);
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
+    }
+
+    index += CHAR_SIZE_DRC_Y;
+
+    if (interface == 0xff) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(16, index, 0, "No network connection!");
+        waitButtonInput();
+        return 0;
+    }
+
+    gfx_printf(16, index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
+    index += CHAR_SIZE_DRC_Y;
+
+    uint8_t ip_address[4];
+    res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to get IP address: %x", res);
+        waitButtonInput();
+        return 0;
+    }
+
+    gfx_printf(16, index, 0, "IP address: %u.%u.%u.%u",
+        ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+    index += CHAR_SIZE_DRC_Y;
+
+    res = socketInit();
+    if (res <= 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to initialize socketlib: %x", res);
+        waitButtonInput();
+        return 0;
+    }
+
+    return index;
+}
+
 static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, const char* key, const char* value, uint32_t value_len)
 {
     if (strncmp(key, "type", sizeof("type")) == 0) {
