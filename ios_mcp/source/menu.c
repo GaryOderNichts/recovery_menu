@@ -35,6 +35,7 @@
 static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
 static void option_DumpOtpAndSeeprom(void);
+static void option_DumpDRCcode(void);
 static void option_StartWupserver(void);
 static void option_LoadNetConf(void);
 static void option_pairDRC(void);
@@ -62,6 +63,7 @@ static const Menu mainMenuOptions[] = {
     {"Set Coldboot Title",          {.callback = option_SetColdbootTitle}},
     {"Dump Syslogs",                {.callback = option_DumpSyslogs}},
     {"Dump OTP + SEEPROM",          {.callback = option_DumpOtpAndSeeprom}},
+    {"Dump gamepad PIN",            {.callback = option_DumpDRCcode}},
     {"Start wupserver",             {.callback = option_StartWupserver}},
     {"Load Network Configuration",  {.callback = option_LoadNetConf}},
     {"Pair Gamepad",                {.callback = option_pairDRC}},
@@ -71,6 +73,13 @@ static const Menu mainMenuOptions[] = {
     {"System Information",          {.callback = option_SystemInformation}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
+
+static const char symbol_names[][8] = {
+        "spade",
+        "heart",
+        "diamond",
+        "clubs",
+    };
 
 static void drawTopBar(const char* title)
 {
@@ -456,6 +465,85 @@ static void option_DumpOtpAndSeeprom(void)
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 }
 
+static void option_DumpDRCcode(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("Dumping gamepad PIN...");
+    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
+
+    uint32_t index = 16 + 8 + 2 + 8;
+
+    int res = CCRCDCSetup();
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "CCRCDCSetup() failed: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
+
+        waitButtonInput();
+        return;
+    }
+
+    gfx_print(16, index, 0, "Get pincode...");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    uint8_t pincode[4];
+    res = CCRSysGetPincode(pincode);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to get pincode: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
+
+        waitButtonInput();
+        return;
+    }
+
+    gfx_print(16, index, 0, "Creating gamepadPIN.txt...");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x400, 0x40);
+    if (!dataBuffer) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(16, index, 0, "Out of memory!");
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
+        waitButtonInput();
+        return;
+    }
+
+    int drcHandle;
+    res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/gamepadPIN.txt", "w", &drcHandle);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to create gamepadPIN.txt: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
+        waitButtonInput();
+
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        return;
+    }
+
+    snprintf(dataBuffer, 0x400, "%s %s %s %s\n", symbol_names[pincode[0]], symbol_names[pincode[1]], symbol_names[pincode[2]], symbol_names[pincode[3]]);
+    res = FSA_WriteFile(fsaHandle, dataBuffer, strnlen(dataBuffer, 0x400), 1, drcHandle, 0);
+    if (res != 1) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to write gamepadPIN.txt: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
+        waitButtonInput();
+
+        FSA_CloseFile(fsaHandle, drcHandle);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        return;
+    }
+
+    gfx_set_font_color(COLOR_SUCCESS);
+
+    gfx_print(16, index, 0, "Done!");
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
+    waitButtonInput();
+
+    FSA_CloseFile(fsaHandle, drcHandle);
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+}
+
 static void option_StartWupserver(void)
 {
     gfx_clear(COLOR_BACKGROUND);
@@ -745,13 +833,6 @@ static void option_pairDRC(void)
         waitButtonInput();
         return;
     }
-
-    static const char symbol_names[][8] = {
-        "spade",
-        "heart",
-        "diamond",
-        "clubs",
-    };
 
     gfx_set_font_color(COLOR_SUCCESS);
     gfx_printf(16, index, 0, "Pincode: %x%x%x%x (%s %s %s %s)",
