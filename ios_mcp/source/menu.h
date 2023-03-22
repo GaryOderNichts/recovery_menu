@@ -22,6 +22,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// FSA handle
+// Initialized by menuThread().
+extern int fsaHandle;
+
 int menuThread(void* arg);
 
 /** Useful functions for submenus **/
