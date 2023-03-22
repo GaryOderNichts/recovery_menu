@@ -21,10 +21,13 @@
 #include "gfx.h"
 #include "imports.h"
 #include "mdinfo.h"
+#include "netconf.h"
+#include "socket.h"
 #include "utils.h"
 
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 
 // POST data
 struct post_data {
@@ -203,18 +206,136 @@ void option_SubmitSystemData(void)
         }
     }
 
-    // Print a hexdump of the post data, plus final hash.
+    // Initialize the network.
+    // TODO: Combine network init code with wupserver network init code.
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("Submit System Data");
     index = 16 + 8 + 2 + 8;
-    gfx_printf(16, index, 0, "sizeof(*pdh) == %u", sizeof(*pdh));
+    gfx_print(16, index, 0, "Initializing netconf...");
     index += CHAR_SIZE_DRC_Y;
-    for (unsigned int i = 0; i < sizeof(*pdh); i += 16) {
-        const uint8_t *const x = ((const uint8_t*)pd) + i;
-        gfx_printf(16, index, 0, "%04X: %02X %02X %02X %02X %02X %02X %02X %02X  %02X %02X %02X %02X %02X %02X %02X %02X",
-            i, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]);
-        index += CHAR_SIZE_DRC_Y;
+
+    res = netconf_init();
+    if (res <= 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
     }
+
+    gfx_printf(16, index, 0, "Waiting for network connection... %ds", 5);
+
+    NetConfInterfaceTypeEnum interface = 0xff;
+    for (int i = 0; i < 5; i++) {
+        if (netconf_get_if_linkstate(NET_CFG_INTERFACE_TYPE_WIFI) == NET_CFG_LINK_STATE_UP) {
+            interface = NET_CFG_INTERFACE_TYPE_WIFI;
+            break;
+        }
+
+        if (netconf_get_if_linkstate(NET_CFG_INTERFACE_TYPE_ETHERNET) == NET_CFG_LINK_STATE_UP) {
+            interface = NET_CFG_INTERFACE_TYPE_ETHERNET;
+            break;
+        }
+
+        usleep(1000 * 1000);
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
+    }
+
+    index += CHAR_SIZE_DRC_Y;
+
+    if (interface == 0xff) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(16, index, 0, "No network connection!");
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    gfx_printf(16, index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
+    index += CHAR_SIZE_DRC_Y;
+
+    uint8_t ip_address[4];
+    res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to get IP address: %x", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    gfx_printf(16, index, 0, "IP address: %u.%u.%u.%u",
+        ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+    index += CHAR_SIZE_DRC_Y;
+
+    // Initialize sockets.
+    // NOTE: Not shutting down sockets later in case wupserver is active.
+    res = socketInit();
+    if (res <= 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to initialize socketlib: %x", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    int httpSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (httpSocket < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "socket() failed: %x", httpSocket);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    // Connect to wiiu.gerbilsoft.com:80
+    // FIXME: Need to add gethostbyname().
+    // For now, we're hard-coding a Cloudflare IP address.
+    struct sockaddr_in sockaddr;
+    memset(&sockaddr, 0, sizeof(sockaddr));
+    sockaddr.sin_family = AF_INET;
+    sockaddr.sin_port = 80;
+    sockaddr.sin_addr.s_addr = 0xAC43C7F3;  // Cloudflare for wiiu.gerbilsoft.com [TODO: gethostbyname()]
+
+    res = connect(httpSocket, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "connect() failed: %x", res);
+        closesocket(httpSocket);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    gfx_printf(16, index, 0, "Connected, submitting data...");
+    index += CHAR_SIZE_DRC_Y;
+
+    // To reduce processing requirements here, we'll submit a simple HTTP/1.0 request
+    // without encryption.
+    static const char http_req[] = "POST /add-system.php HTTP/1.0\r\n"
+        "Host: wiiu.gerbilsoft.com\r\n"
+        "User-Agent: Wii U Recovery Menu/" VERSION_STRING "\r\n"
+        "Content-Type: application/octet-stream\r\n"
+        "Content-Length: 352\r\n\r\n";
+
+    // Send the HTTP request.
+    // TODO: Do we need a newline after the POST data?
+    send(httpSocket, http_req, sizeof(http_req)-1, 0);
+    send(httpSocket, pdh, sizeof(*pdh), 0);
+    usleep(1000 * 1000);
+
+    // TODO: Check for a return error code.
+    closesocket(httpSocket);
+    gfx_set_font_color(COLOR_SUCCESS);
+    gfx_print(16, index, 0, "System data submitted successfully.");
+    index += CHAR_SIZE_DRC_Y;
+    static const char link_prefix[] = "Check out the Wii U console database at:";
+    gfx_print(16, index, 0, link_prefix);
+    static const int xpos = 16 + CHAR_SIZE_DRC_X * sizeof(link_prefix);
+    gfx_set_font_color(COLOR_LINK);
+    // TODO: Underline attribute instead of double-printing?
+    gfx_print(xpos, index, 0, "https://wiiu.gerbilsoft.com/");
+    gfx_print(xpos, index, 0, "____________________________");
 
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
     waitButtonInput();

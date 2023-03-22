@@ -8,6 +8,7 @@
 #define COLOR_SECONDARY     0x3478e4ff
 #define COLOR_SUCCESS       0x00ff00ff
 #define COLOR_ERROR         0xff0000ff
+#define COLOR_LINK          0x5555ffff
 
 // visible screen sizes
 #define SCREEN_WIDTH 854
