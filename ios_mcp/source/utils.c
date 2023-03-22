@@ -2,9 +2,17 @@
 #include "imports.h"
 #include "fsa.h"
 
+#include <stdbool.h>
+#include <unistd.h>
+
 #define COPY_BUFFER_SIZE 1024
 
 #define HW_RSTB 0x0d800194
+
+static NOTIF_LED oldLedState = NOTIF_LED_PURPLE;
+static int ledTid = -1;
+static volatile bool ledCanceled;
+static uint8_t ledThreadStack[0x400] __attribute__((aligned(0x20)));
 
 uint32_t kernRead32(uint32_t address)
 {
@@ -96,9 +104,41 @@ int readDCConfig(DisplayController_Config* config)
     return bspRead("DISPLAY", 0, "DC_CONFIG", 0x14, config);
 }
 
-int setNotificationLED(uint8_t mask)
+static int ledThread(void *arg)
 {
-    return bspWrite("SMC", 0, "NotificationLED", 1, &mask);
+    for(uint32_t i = 0; i < (uint32_t)arg; ++i)
+    {
+        usleep(1);
+        if(ledCanceled)
+            return 0;
+    }
+
+    bspWrite("SMC", 0, "NotificationLED", 1, &oldLedState);
+    return 0;
+}
+
+void setNotificationLED(NOTIF_LED state, uint32_t duration)
+{
+    if(state == oldLedState)
+        return;
+
+    if(ledTid != -1)
+    {
+        ledCanceled = true;
+        IOS_JoinThread(ledTid, NULL);
+        ledTid = -1;
+    }
+
+    bspWrite("SMC", 0, "NotificationLED", 1, &state);
+
+    if(duration != 0)
+    {
+        ledCanceled = false;
+        ledTid = IOS_CreateThread(ledThread, (void *)duration, ledThreadStack + sizeof(ledThreadStack), sizeof(ledThreadStack), IOS_GetThreadPriority(0), 0);
+        IOS_StartThread(ledTid);
+    }
+    else
+        oldLedState = state;
 }
 
 int setDrivePower(int power)

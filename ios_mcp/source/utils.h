@@ -39,7 +39,7 @@ typedef struct DisplayController_Config {
     void* framebuffer;
 } DisplayController_Config;
 
-enum {
+typedef enum {
     NOTIF_LED_OFF               = 0,
     NOTIF_LED_ORANGE_BLINKING   = 1 << 0,
     NOTIF_LED_ORANGE            = 1 << 1,
@@ -47,7 +47,9 @@ enum {
     NOTIF_LED_RED               = 1 << 3,
     NOTIF_LED_BLUE_BLINKING     = 1 << 4,
     NOTIF_LED_BLUE              = 1 << 5,
-};
+    NOTIF_LED_PURPLE            = NOTIF_LED_RED | NOTIF_LED_BLUE,
+    NOTIF_LED_PURPLE_BLINKING   = NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE_BLINKING,
+} NOTIF_LED;
 
 uint32_t kernRead32(uint32_t address);
 
@@ -65,6 +67,6 @@ int initDisplay(uint32_t configuration);
 
 int readDCConfig(DisplayController_Config* config);
 
-int setNotificationLED(uint8_t mask);
+void setNotificationLED(NOTIF_LED state, uint32_t duration);
 
 int setDrivePower(int power);

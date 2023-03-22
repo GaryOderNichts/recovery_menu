@@ -35,6 +35,7 @@
 static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
 static void option_DumpOtpAndSeeprom(void);
+static void option_DumpSystemXml(void);
 static void option_StartWupserver(void);
 static void option_LoadNetConf(void);
 static void option_pairDRC(void);
@@ -62,6 +63,7 @@ static const Menu mainMenuOptions[] = {
     {"Set Coldboot Title",          {.callback = option_SetColdbootTitle}},
     {"Dump Syslogs",                {.callback = option_DumpSyslogs}},
     {"Dump OTP + SEEPROM",          {.callback = option_DumpOtpAndSeeprom}},
+    {"Dump system.xml",             {.callback = option_DumpSystemXml}},
     {"Start wupserver",             {.callback = option_StartWupserver}},
     {"Load Network Configuration",  {.callback = option_LoadNetConf}},
     {"Pair Gamepad",                {.callback = option_pairDRC}},
@@ -454,6 +456,30 @@ static void option_DumpOtpAndSeeprom(void)
 
     FSA_CloseFile(fsaHandle, seepromHandle);
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+}
+
+static void option_DumpSystemXml(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+
+    drawTopBar("Dumping system.xml...");
+    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
+
+    uint32_t index = 16 + 8 + 2 + 8;
+    int res = copy_file(fsaHandle, "/vol/system/sys/config/system.xml", "/vol/storage_recovsd/system.xml");
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to copy system.xml: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
+        waitButtonInput();
+
+        return;
+    }
+
+    gfx_set_font_color(COLOR_SUCCESS);
+    gfx_print(16, index, 0, "Done!");
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
+    waitButtonInput();
 }
 
 static void option_StartWupserver(void)
@@ -1445,7 +1471,7 @@ int menuThread(void* arg)
     printf("menuThread running\n");
 
     // set LED to purple-orange blinking
-    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE);
+    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE, 0);
 
     // stop ppcHeartbeatThread and reset PPC
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
@@ -1490,7 +1516,7 @@ int menuThread(void* arg)
     }
 
     // set LED to purple
-    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_BLUE);
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
 
     int selected = 0;
     while (1) {
