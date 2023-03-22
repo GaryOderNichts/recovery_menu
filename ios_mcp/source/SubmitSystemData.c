@@ -84,36 +84,32 @@ void option_SubmitSystemData(void)
         return;
     }
 
+    static const char *const desc_lines[] = {
+        "This will submit statistical data to the developers of recovery_menu,",
+        "which will help to determine various statistics about Wii U consoles,",
+        "e.g. eMMC manufacturers. The submitted data may be publicly accessible",
+        "but personally identifying information will be kept confidential.",
+        NULL,
+        "Information that will be submitted:",
+        "* System model",
+        "* System serial number (excluding the last 3 digits)",
+        "* Manufacturing date",
+        "* Region information",
+        "* Security level (keyset), sataDevice, consoleType",
+        "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed",
+        "* MLC manufacturer, revision, name, and size",
+        "* SHA-256 hash of OTP (to prevent duplicates)",
+        NULL,
+        "Do you want to submit your console's system data?",
+    };
     gfx_set_font_color(COLOR_PRIMARY);
-    gfx_print(16, index, 0, "This will submit statistical data to the developers of recovery_menu,");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "which will help to determine various statistics about Wii U consoles,");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "e.g. eMMC manufacturers. The submitted data may be publicly accessible");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "but personally identifying information will be kept confidential.");
-    index += (CHAR_SIZE_DRC_Y * 2);
-    gfx_print(16, index, 0, "Information that will be submitted:");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* System model");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* System serial number (excluding the last 3 digits)");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* Manufacturing date");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* Region information");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* Security level (keyset), sataDevice, consoleType");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* MLC manufacturer, revision, name, and size");
-    index += CHAR_SIZE_DRC_Y;
-    gfx_print(16, index, 0, "* SHA-256 hash of OTP (to prevent duplicates)");
-    index += (CHAR_SIZE_DRC_Y * 2);
-
-    gfx_print(16, index, 0, "Do you want to submit your console's system data?");
-    index += CHAR_SIZE_DRC_Y + 4;
+    for (unsigned int i = 0; i < ARRAY_SIZE(desc_lines); i++) {
+        if (desc_lines[i]) {
+            gfx_print(16, index, 0, desc_lines[i]);
+        }
+        index += CHAR_SIZE_DRC_Y;
+    }
+    index += 4;
 
     static const Menu submitSystemDataOptions[] = {
         {"Cancel", {0} },
@@ -194,11 +190,14 @@ void option_SubmitSystemData(void)
         res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), otp, 0x400, IOSC_HASH_FLAGS_FINALIZE, pd->otp_sha256, sizeof(pd->otp_sha256));
     }
 
-    // Hash the post data. (TODO: Mix in an HMAC?)
+    // Hash the post data.
     // TODO: Check for errors.
     res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), NULL, 0, IOSC_HASH_FLAGS_INIT, NULL, 0);
     if (res == 0) {
-        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), (uint8_t*)pd, sizeof(*pd), IOSC_HASH_FLAGS_FINALIZE, pdh->post_sha256, sizeof(pdh->post_sha256));
+        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), (uint8_t*)pd, sizeof(*pd), IOSC_HASH_FLAGS_UPDATE, pdh->post_sha256, sizeof(pdh->post_sha256));
+        if (res == 0) {
+            // Mix in a 64-byte "secret".
+        }
     }
 
     // Print a hexdump of the post data, plus final hash.
