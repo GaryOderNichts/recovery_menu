@@ -150,12 +150,14 @@ int drawMenu(const char* title, const Menu* menu, size_t count,
         SMC_ReadSystemEventFlag(&flag);
         if (cur_flag != flag) {
             if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
+                setNotificationLED(NOTIF_LED_OFF, 250);
                 prev_selected = selected;
                 selected++;
                 if (selected == count)
                     selected = 0;
                 redraw = 1;
             } else if (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON) {
+                setNotificationLED(NOTIF_LED_OFF, 250);
                 return selected;
             }
             cur_flag = flag;
@@ -201,6 +203,7 @@ void waitButtonInput(void)
         SMC_ReadSystemEventFlag(&flag);
         if (cur_flag != flag) {
             if ((flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) || (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON)) {
+                setNotificationLED(NOTIF_LED_OFF, 250);
                 return;
             }
 
