@@ -194,9 +194,12 @@ void option_SubmitSystemData(void)
     // TODO: Check for errors.
     res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), NULL, 0, IOSC_HASH_FLAGS_INIT, NULL, 0);
     if (res == 0) {
-        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), (uint8_t*)pd, sizeof(*pd), IOSC_HASH_FLAGS_UPDATE, pdh->post_sha256, sizeof(pdh->post_sha256));
+        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), (uint8_t*)pd, sizeof(*pd), IOSC_HASH_FLAGS_UPDATE, NULL, 0);
         if (res == 0) {
-            // Mix in a 64-byte "secret".
+            // Add some more stuff to the hash.
+            // NOTE: Reusing the OTP buffer here.
+            memcpy(otp, desc_lines[0], 64);
+            res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), otp, 64, IOSC_HASH_FLAGS_FINALIZE, pdh->post_sha256, sizeof(pdh->post_sha256));
         }
     }
 
