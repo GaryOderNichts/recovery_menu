@@ -32,6 +32,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "SubmitSystemData.h"
+
 static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
 static void option_DumpOtpAndSeeprom(void);
@@ -50,14 +52,6 @@ extern uint64_t currentColdbootTitle;
 
 static int fsaHandle = -1;
 
-typedef struct Menu {
-    const char* name;
-    union {
-        void (*callback)(void);
-        uint64_t tid;
-    };
-} Menu;
-
 static const Menu mainMenuOptions[] = {
     {"Set Coldboot Title",          {.callback = option_SetColdbootTitle}},
     {"Dump Syslogs",                {.callback = option_DumpSyslogs}},
@@ -69,10 +63,15 @@ static const Menu mainMenuOptions[] = {
     {"Edit Parental Controls",      {.callback = option_EditParental}},
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
     {"System Information",          {.callback = option_SystemInformation}},
+    {"Submit System Data",          {.callback = option_SubmitSystemData}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
 
-static void drawTopBar(const char* title)
+/**
+ * Draw the top bar.
+ * @param title Title
+ */
+void drawTopBar(const char* title)
 {
     // draw top bar
     gfx_set_font_color(COLOR_PRIMARY);
@@ -89,11 +88,6 @@ static void drawBars(const char* title)
     gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
     gfx_print(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, GfxPrintFlag_AlignRight, "POWER: Choose");
 }
-
-typedef enum {
-    MenuFlag_ShowTID        = (1U << 0),
-    MenuFlag_NoClearScreen  = (1U << 1),
-} MenuFlags;
 
 /**
  * Draw a single menu item. Called by drawMenu().
@@ -136,9 +130,9 @@ static void drawMenuItem(const Menu* menuItem, int selected, uint32_t flags, uin
  * @param flags
  * @param x
  * @param y
- * @return Selected menu entry index.
+ * @return Selected menu entry index
  */
-static int drawMenu(const char* title, const Menu* menu, size_t count,
+int drawMenu(const char* title, const Menu* menu, size_t count,
         int selected, uint32_t flags, uint32_t x, uint32_t y)
 {
     int redraw = 1;
@@ -193,7 +187,10 @@ static int drawMenu(const char* title, const Menu* menu, size_t count,
     }
 }
 
-static void waitButtonInput(void)
+/**
+ * Wait for the user to press a button.
+ */
+void waitButtonInput(void)
 {
     gfx_set_font_color(COLOR_PRIMARY);
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
@@ -970,18 +967,13 @@ static void option_EditParental(void)
     }
 }
 
-static const char region_tbl[7][4] = {
-    "JPN", "USA", "EUR", "AUS",
-    "CHN", "KOR", "TWN",
-};
-
 /**
  * Get region code information.
  * @param productArea_id Product area ID: 0-6
  * @param gameRegion Bitfield of game regions
- * @return 0 on success; negative on error
+ * @return 0 on success; negative on error.
  */
-static int getRegionInfo(int* productArea_id, int* gameRegion)
+int getRegionInfo(int* productArea_id, int* gameRegion)
 {
     MCPSysProdSettings sysProdSettings;
 
@@ -1181,6 +1173,40 @@ static void option_DebugSystemRegion(void)
     waitButtonInput();
 }
 
+/**
+ * Read OTP and SEEPROM.
+ *
+ * If an error occurs, a message will be displayed and the
+ * user will be prompted to press a button.
+ *
+ * @param buf Buffer (must be 0x600 bytes)
+ * @param index Row index for error messages
+ * @return 0 on success; non-zero on error.
+ */
+int read_otp_seeprom(void *buf, int index)
+{
+    uint8_t* const otp = (uint8_t*)buf;
+    uint16_t* const seeprom = (uint16_t*)buf + 0x200;
+
+    int res = IOS_ReadOTP(0, otp, 0x400);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
+        waitButtonInput();
+        return res;
+    }
+
+    res = EEPROM_Read(0, 0x100, seeprom);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
+        waitButtonInput();
+        return res;
+    }
+
+    return 0;
+}
+
 static void option_SystemInformation(void)
 {
     gfx_clear(COLOR_BACKGROUND);
@@ -1199,26 +1225,12 @@ static void option_SystemInformation(void)
         waitButtonInput();
         return;
     }
+    if (read_otp_seeprom(dataBuffer, index) != 0) {
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        return;
+    }
     uint8_t* const otp = (uint8_t*)dataBuffer;
     uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
-
-    int res = IOS_ReadOTP(0, otp, 0x400);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
-        return;
-    }
-
-    res = EEPROM_Read(0, 0x100, seeprom);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
-        return;
-    }
 
     // NOTE: gfx_printf() does not support precision specifiers.
     // We'll have to ensure the strings are terminated manually.
@@ -1292,7 +1304,7 @@ static void option_SystemInformation(void)
 
     int productArea_id = 0; // 0-6, matches title ID
     int gameRegion;
-    res = getRegionInfo(&productArea_id, &gameRegion);
+    int res = getRegionInfo(&productArea_id, &gameRegion);
     if (res >= 0) {
         // productArea is a single region.
         gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
@@ -1362,7 +1374,7 @@ static void option_SystemInformation(void)
         return;
     }
 
-    for (int i = 0; i < 2; i++) {
+    for (unsigned int i = 0; i < 2; i++) {
         MDBlkDrv* drv = MDGetBlkDrv(i);
         // Ignore unregistered drivers and the SD Card
         if (!drv->registered || drv->params.device_type == SAL_DEVICE_TYPE_SD_CARD) {
@@ -1494,7 +1506,7 @@ int menuThread(void* arg)
 
     int selected = 0;
     while (1) {
-        selected = drawMenu("Wii U Recovery Menu v0.4 by GaryOderNichts",
+        selected = drawMenu("Wii U Recovery Menu v" VERSION_STRING " by GaryOderNichts",
             mainMenuOptions, ARRAY_SIZE(mainMenuOptions), selected,
             0, 16, 16+8+2+8);
         if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {

@@ -50,3 +50,5 @@ PROVIDE(IOS_Syscall0x81 = 0x05056bf4);
 PROVIDE(ppcHeartBeatThreadId = 0x05070458);
 PROVIDE(currentColdbootOS = 0x050b8174);
 PROVIDE(currentColdbootTitle = 0x050b817c);
+
+PROVIDE(IOSC_GenerateHash = 0x05053a6c);
