@@ -290,6 +290,7 @@ static void option_DumpSyslogs(void)
     gfx_clear(COLOR_BACKGROUND);
 
     drawTopBar("Dumping Syslogs...");
+    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_print(16, index, 0, "Creating 'logs' directory...");
@@ -299,6 +300,7 @@ static void option_DumpSyslogs(void)
     if ((res < 0) && !(res == -0x30016)) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to create directory: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
         return;
     }
@@ -311,6 +313,7 @@ static void option_DumpSyslogs(void)
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to open system logs: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
         return;
     }
@@ -333,6 +336,7 @@ static void option_DumpSyslogs(void)
             index += CHAR_SIZE_DRC_Y + 4;
             gfx_set_font_color(COLOR_ERROR);
             gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to copy %s: %x", dir_entry.name, res);
+            setNotificationLED(NOTIF_LED_PURPLE, 0);
             waitButtonInput();
 
             FSA_CloseDir(fsaHandle, dir_handle);
@@ -343,6 +347,7 @@ static void option_DumpSyslogs(void)
     index += CHAR_SIZE_DRC_Y + 4;
     gfx_set_font_color(COLOR_SUCCESS);
     gfx_print(16, index, 0, "Done!");
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
     waitButtonInput();
 
     FSA_CloseDir(fsaHandle, dir_handle);
@@ -352,6 +357,7 @@ static void option_DumpOtpAndSeeprom(void)
 {
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("Dumping OTP + SEEPROM...");
+    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_print(16, index, 0, "Creating otp.bin...");
@@ -361,6 +367,7 @@ static void option_DumpOtpAndSeeprom(void)
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Out of memory!");
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
         return;
     }
@@ -370,6 +377,7 @@ static void option_DumpOtpAndSeeprom(void)
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to create otp.bin: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
 
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
@@ -383,6 +391,7 @@ static void option_DumpOtpAndSeeprom(void)
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, otpHandle);
@@ -397,6 +406,7 @@ static void option_DumpOtpAndSeeprom(void)
     if (res != 0x400) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to write otp.bin: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, otpHandle);
@@ -414,6 +424,7 @@ static void option_DumpOtpAndSeeprom(void)
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to create seeprom.bin: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
 
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
@@ -427,6 +438,7 @@ static void option_DumpOtpAndSeeprom(void)
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, seepromHandle);
@@ -441,6 +453,7 @@ static void option_DumpOtpAndSeeprom(void)
     if (res != 0x200) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to write seeprom.bin: %x", res);
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
         waitButtonInput();
 
         FSA_CloseFile(fsaHandle, seepromHandle);
@@ -450,6 +463,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     gfx_set_font_color(COLOR_SUCCESS);
     gfx_print(16, index, 0, "Done!");
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
     waitButtonInput();
 
     FSA_CloseFile(fsaHandle, seepromHandle);
