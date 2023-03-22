@@ -210,6 +210,7 @@ static void waitButtonInput(void)
         readSystemEventFlag(&flag);
         if (cur_flag != flag) {
             if ((flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) || (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON)) {
+                setNotificationLED(NOTIF_LED_OFF, 250);
                 return;
             }
 
