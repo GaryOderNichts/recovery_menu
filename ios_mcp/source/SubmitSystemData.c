@@ -22,12 +22,15 @@
 #include "imports.h"
 #include "mdinfo.h"
 #include "netconf.h"
+#include "netdb.h"
 #include "socket.h"
 #include "utils.h"
 
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+
+#define SYSDATA_HOST_NAME "wiiu.gerbilsoft.com"
 
 // POST data
 struct post_data {
@@ -230,14 +233,22 @@ void option_SubmitSystemData(void)
         return;
     }
 
-    // Connect to wiiu.gerbilsoft.com:80
-    // FIXME: Need to add gethostbyname().
-    // For now, we're hard-coding a Cloudflare IP address.
+    // Look up the domain name.
+    struct hostent* h = gethostbyname(SYSDATA_HOST_NAME);
+    if (!h || !h->h_addr) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "gethostbyname() failed; is your DNS server working?");
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    // IP address is stored in h->h_addr.
     struct sockaddr_in sockaddr;
     memset(&sockaddr, 0, sizeof(sockaddr));
     sockaddr.sin_family = AF_INET;
     sockaddr.sin_port = 80;
-    sockaddr.sin_addr.s_addr = 0xAC43C7F3;  // Cloudflare for wiiu.gerbilsoft.com [TODO: gethostbyname()]
+    memcpy(&sockaddr.sin_addr.s_addr, h->h_addr, 4);
 
     res = connect(httpSocket, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
     if (res < 0) {
