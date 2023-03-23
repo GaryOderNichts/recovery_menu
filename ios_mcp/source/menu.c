@@ -29,6 +29,7 @@
 #include "mcp_misc.h"
 #include "mdinfo.h"
 
+#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -218,6 +219,28 @@ static void waitButtonInput(void)
     }
 }
 
+static void print_error(int index, const char *msg)
+{
+    gfx_set_font_color(COLOR_ERROR);
+    gfx_print(16, index, GfxPrintFlag_ClearBG, msg);
+    setNotificationLED(NOTIF_LED_RED, 0);
+    waitButtonInput();
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
+}
+
+static void printf_error(int index, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    char buffer[0x100];
+
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    print_error(index, buffer);
+}
+
 static void option_SetColdbootTitle(void)
 {
     static const Menu coldbootTitleOptions[] = {
@@ -275,11 +298,11 @@ static void option_SetColdbootTitle(void)
             index += CHAR_SIZE_DRC_Y + 4;
 
             if (rval < 0) {
-                gfx_set_font_color(COLOR_ERROR);
-                gfx_print(16, index, GfxPrintFlag_ClearBG, "Error! Make sure title is installed correctly.");
+                print_error(index, "Error! Make sure title is installed correctly.");
             } else {
                 gfx_set_font_color(COLOR_SUCCESS);
                 gfx_print(16, index, GfxPrintFlag_ClearBG, "Success!                                      ");
+                waitButtonInput();
             }
         }
     }
@@ -290,7 +313,7 @@ static void option_DumpSyslogs(void)
     gfx_clear(COLOR_BACKGROUND);
 
     drawTopBar("Dumping Syslogs...");
-    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
+    setNotificationLED(NOTIF_LED_ORANGE_BLINKING, 0);
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_print(16, index, 0, "Creating 'logs' directory...");
@@ -298,10 +321,7 @@ static void option_DumpSyslogs(void)
 
     int res = FSA_MakeDir(fsaHandle, "/vol/storage_recovsd/logs", 0x600);
     if ((res < 0) && !(res == -0x30016)) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to create directory: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to create directory: %x", res);
         return;
     }
 
@@ -311,10 +331,7 @@ static void option_DumpSyslogs(void)
     int dir_handle;
     res = FSA_OpenDir(fsaHandle, "/vol/system/logs", &dir_handle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to open system logs: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to open system logs: %x", res);
         return;
     }
 
@@ -334,10 +351,7 @@ static void option_DumpSyslogs(void)
         res = copy_file(fsaHandle, src_path, dst_path);
         if (res < 0) {
             index += CHAR_SIZE_DRC_Y + 4;
-            gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to copy %s: %x", dir_entry.name, res);
-            setNotificationLED(NOTIF_LED_PURPLE, 0);
-            waitButtonInput();
+            printf_error(index, "Failed to copy %s: %x", dir_entry.name, res);
 
             FSA_CloseDir(fsaHandle, dir_handle);
             return;
@@ -357,7 +371,7 @@ static void option_DumpOtpAndSeeprom(void)
 {
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("Dumping OTP + SEEPROM...");
-    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
+    setNotificationLED(NOTIF_LED_ORANGE_BLINKING, 0);
 
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_print(16, index, 0, "Creating otp.bin...");
@@ -365,20 +379,14 @@ static void option_DumpOtpAndSeeprom(void)
 
     void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x400, 0x40);
     if (!dataBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        print_error(index, "Out of memory!");
         return;
     }
 
     int otpHandle;
     int res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/otp.bin", "w", &otpHandle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to create otp.bin: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to create otp.bin: %x", res);
 
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
@@ -389,10 +397,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     res = IOS_ReadOTP(0, dataBuffer, 0x400);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to read OTP: %x", res);
 
         FSA_CloseFile(fsaHandle, otpHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
@@ -404,10 +409,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x400, otpHandle, 0);
     if (res != 0x400) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to write otp.bin: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to write otp.bin: %x", res);
 
         FSA_CloseFile(fsaHandle, otpHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
@@ -422,10 +424,7 @@ static void option_DumpOtpAndSeeprom(void)
     int seepromHandle;
     res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/seeprom.bin", "w", &seepromHandle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to create seeprom.bin: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to create seeprom.bin: %x", res);
 
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
@@ -436,10 +435,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     res = EEPROM_Read(0, 0x100, (uint16_t*) dataBuffer);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to read EEPROM: %x", res);
 
         FSA_CloseFile(fsaHandle, seepromHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
@@ -451,10 +447,7 @@ static void option_DumpOtpAndSeeprom(void)
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x200, seepromHandle, 0);
     if (res != 0x200) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to write seeprom.bin: %x", res);
-        setNotificationLED(NOTIF_LED_PURPLE, 0);
-        waitButtonInput();
+        printf_error(index, "Failed to write seeprom.bin: %x", res);
 
         FSA_CloseFile(fsaHandle, seepromHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
@@ -481,9 +474,7 @@ static void option_StartWupserver(void)
 
     int res = netconf_init();
     if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to initialize netconf: %x", res);
         return;
     }
 
@@ -508,9 +499,7 @@ static void option_StartWupserver(void)
     index += CHAR_SIZE_DRC_Y + 4;
 
     if (interface == 0xff) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "No network connection!");
-        waitButtonInput();
+        print_error(index, "No network connection!");
         return;
     }
 
@@ -520,9 +509,7 @@ static void option_StartWupserver(void)
     uint8_t ip_address[4];
     res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get IP address: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to get IP address: %x", res);
         return;
     }
 
@@ -532,9 +519,7 @@ static void option_StartWupserver(void)
 
     res = socketInit();
     if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize socketlib: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to initialize socketlib: %x", res);
         return;
     }
 
@@ -624,9 +609,7 @@ static void option_LoadNetConf(void)
 
     int res = netconf_init();
     if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to initialize netconf: %x", res);
         return;
     }
 
@@ -636,18 +619,14 @@ static void option_LoadNetConf(void)
     int cfgHandle;
     res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/network.cfg", "r", &cfgHandle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to open network.cfg: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to open network.cfg: %x", res);
         return;
     }
 
     FSStat stat;
     res = FSA_StatFile(fsaHandle, cfgHandle, &stat);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to stat file: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to stat file: %x", res);
 
         FSA_CloseFile(fsaHandle, cfgHandle);
         return;
@@ -655,9 +634,7 @@ static void option_LoadNetConf(void)
 
     char* cfgBuffer = (char*) IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, stat.size + 1, 0x40);
     if (!cfgBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        waitButtonInput();
+        print_error(index, "Out of memory!");
 
         FSA_CloseFile(fsaHandle, cfgHandle);
         return;
@@ -667,9 +644,7 @@ static void option_LoadNetConf(void)
 
     res = FSA_ReadFile(fsaHandle, cfgBuffer, 1, stat.size, cfgHandle, 0);
     if (res != stat.size) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read file: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to read file: %x", res);
 
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
         FSA_CloseFile(fsaHandle, cfgHandle);
@@ -712,9 +687,7 @@ static void option_LoadNetConf(void)
 
     res = netconf_set_running(&cfg);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to apply configuration: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to apply configuration: %x", res);
 
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
         FSA_CloseFile(fsaHandle, cfgHandle);
@@ -740,10 +713,7 @@ static void option_pairDRC(void)
 
     int res = CCRCDCSetup();
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "CCRCDCSetup() failed: %x", res);
-
-        waitButtonInput();
+        printf_error(index, "CCRCDCSetup() failed: %x", res);
         return;
     }
 
@@ -753,10 +723,7 @@ static void option_pairDRC(void)
     uint8_t pincode[4];
     res = CCRSysGetPincode(pincode);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get pincode: %x", res);
-
-        waitButtonInput();
+        printf_error(index, "Failed to get pincode: %x", res);
         return;
     }
 
@@ -796,10 +763,7 @@ static void option_pairDRC(void)
 
     res = CCRSysStartPairing(CCR_DEST_DRC0, timeout, pincode);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to start pairing: %x", res);
-
-        waitButtonInput();
+        printf_error(index, "Failed to start pairing: %x", res);
         return;
     }
 
@@ -833,16 +797,13 @@ static void option_pairDRC(void)
     }
 
     if (status != 0 || timeout <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to pair GamePad: %lx", status);
-
+        printf_error(index, "Failed to pair GamePad: %lx", status);
         CCRCDCWpsStop();
     } else {
         gfx_set_font_color(COLOR_SUCCESS);
         gfx_printf(16, index, GfxPrintFlag_ClearBG, "Paired GamePad");
+        waitButtonInput();
     }
-
-    waitButtonInput();
 }
 
 static void option_InstallWUP(void)
@@ -856,9 +817,7 @@ static void option_InstallWUP(void)
 
     int mcpHandle = IOS_Open("/dev/mcp", 0);
     if (mcpHandle < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to open /dev/mcp: %x", mcpHandle);
-        waitButtonInput();
+        printf_error(index, "Failed to open /dev/mcp: %x", mcpHandle);
         return;
     }
 
@@ -868,9 +827,7 @@ static void option_InstallWUP(void)
     MCPInstallInfo info;
     int res = MCP_InstallGetInfo(mcpHandle, "/vol/storage_recovsd/install", &info);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get install info: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to get install info: %x", res);
 
         IOS_Close(mcpHandle);
         return;
@@ -883,18 +840,14 @@ static void option_InstallWUP(void)
     // only install to NAND
     res = MCP_InstallSetTargetDevice(mcpHandle, 0);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_InstallSetTargetDevice: %x", res);
-        waitButtonInput();
+        printf_error(index, "MCP_InstallSetTargetDevice: %x", res);
 
         IOS_Close(mcpHandle);
         return;
     }
     res = MCP_InstallSetTargetUsb(mcpHandle, 0);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_InstallSetTargetUsb: %x", res);
-        waitButtonInput();
+        printf_error(index, "MCP_InstallSetTargetUsb: %x", res);
 
         IOS_Close(mcpHandle);
         return;
@@ -903,9 +856,7 @@ static void option_InstallWUP(void)
     // TODO: async installations
     res = MCP_InstallTitle(mcpHandle, "/vol/storage_recovsd/install");
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to install: %x", res);
-        waitButtonInput();
+        printf_error(index, 0, "Failed to install: %x", res);
 
         IOS_Close(mcpHandle);
         return;
@@ -1033,9 +984,7 @@ static void option_DebugSystemRegion(void)
     int productArea_id, gameRegion;
     int res = getRegionInfo(&productArea_id, &gameRegion);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get the system region code: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to get the system region code: %x", res);
         return;
     }
 
@@ -1123,12 +1072,10 @@ static void option_DebugSystemRegion(void)
     // Show the errors.
     gfx_set_font_color(COLOR_ERROR);
     if (menu_count == 0 || menu_productArea_id < 0) {
-        gfx_print(16, index, 0, "Could not find a Wii U Menu title installed on this system.");
-        waitButtonInput();
+        print_error(index, "Could not find a Wii U Menu title installed on this system.");
         return;
     } else if (menu_count > 1) {
-        gfx_print(16, index, 0, "Multiple Wii U Menus were found. Someone dun goofed...");
-        waitButtonInput();
+        print_error(index, "Multiple Wii U Menus were found. Someone dun goofed...");
         return;
     }
 
@@ -1160,9 +1107,7 @@ static void option_DebugSystemRegion(void)
     // Attempt to set the region code.
     int mcpHandle = IOS_Open("/dev/mcp", 0);
     if (mcpHandle < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "IOS_Open(\"/dev/mcp\") failed: %x", mcpHandle);
-        waitButtonInput();
+        printf_error(index, "IOS_Open(\"/dev/mcp\") failed: %x", mcpHandle);
         return;
     }
 
@@ -1170,9 +1115,7 @@ static void option_DebugSystemRegion(void)
     res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
     if (res < 0) {
         IOS_Close(mcpHandle);
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_GetSysProdSettings() failed: %x", res);
-        waitButtonInput();
+        printf_error(index, "MCP_GetSysProdSettings() failed: %x", res);
         return;
     }
 
@@ -1183,13 +1126,11 @@ static void option_DebugSystemRegion(void)
     res = MCP_SetSysProdSettings(mcpHandle, &sysProdSettings);
     IOS_Close(mcpHandle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_SetSysProdSettings() failed: %x", res);
+        printf_error(index, "MCP_SetSysProdSettings() failed: %x", res);
+        return;
     } else {
         gfx_set_font_color(COLOR_SUCCESS);
         gfx_printf(16, index, 0, "System region set to %s successfully.", menu_region_str);
-        waitButtonInput();
-        return;
     }
 
     waitButtonInput();
@@ -1208,9 +1149,7 @@ static void option_SystemInformation(void)
     // 0x600-0x7FF: misc for version.bin
     void *dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x800, 0x40);
     if (!dataBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        waitButtonInput();
+        print_error(index, "Out of memory!");
         return;
     }
     uint8_t* const otp = (uint8_t*)dataBuffer;
@@ -1218,19 +1157,15 @@ static void option_SystemInformation(void)
 
     int res = IOS_ReadOTP(0, otp, 0x400);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
+        printf_error(index, "Failed to read OTP: %x", res);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
         return;
     }
 
     res = EEPROM_Read(0, 0x100, seeprom);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
+        printf_error(index, "Failed to read EEPROM: %x", res);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
         return;
     }
 
@@ -1370,9 +1305,7 @@ static void option_SystemInformation(void)
     // Read info about IOS-FS' memory devices
     res = MDReadInfo();
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read memory device info: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to read memory device info: %x", res);
         return;
     }
 
