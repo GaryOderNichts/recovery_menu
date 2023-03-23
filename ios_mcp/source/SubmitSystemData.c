@@ -340,9 +340,7 @@ void option_SubmitSystemData(void)
         gfx_print(16, index, 0, link_prefix);
         static const int xpos = 16 + CHAR_SIZE_DRC_X * sizeof(link_prefix);
         gfx_set_font_color(COLOR_LINK);
-        // TODO: Underline attribute instead of double-printing?
-        gfx_print(xpos, index, 0, "https://wiiu.gerbilsoft.com/");
-        gfx_print(xpos, index, 0, "____________________________");
+        gfx_print(xpos, index, GfxPrintFlag_Underline, "https://" SYSDATA_HOST_NAME "/");
     } else {
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Failed to submit system data.");
@@ -350,9 +348,7 @@ void option_SubmitSystemData(void)
         gfx_print(16, index, 0, "Please report a bug on the GitHub issue tracker:");
         index += CHAR_SIZE_DRC_Y;
         gfx_set_font_color(COLOR_LINK);
-        // TODO: Underline attribute instead of double-printing?
-        gfx_print(16, index, 0, "https://github.com/GaryOderNichts/recovery_menu/issues");
-        gfx_print(16, index, 0, "______________________________________________________");
+        gfx_print(16, index, GfxPrintFlag_Underline, "https://github.com/GaryOderNichts/recovery_menu/issues");
     }
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
     waitButtonInput();

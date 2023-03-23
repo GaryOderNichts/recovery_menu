@@ -199,6 +199,9 @@ void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* strin
         if ((unsigned char)chr >= 32 && (unsigned char)chr <= 128) {
             gfx_draw_char(x, y, chr);
         }
+        if ((gfxPrintFlags & GfxPrintFlag_Underline) && (chr != '_')) {
+            gfx_draw_char(x, y, '_');
+        }
     }
 }
 

@@ -36,6 +36,7 @@ uint32_t gfx_get_text_width(const char* string);
 typedef enum GfxPrintFlags {
     GfxPrintFlag_AlignRight     = (1U << 0),
     GfxPrintFlag_ClearBG        = (1U << 1),
+    GfxPrintFlag_Underline      = (1U << 2),
 } GfxPrintFlags;
 
 void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* string);

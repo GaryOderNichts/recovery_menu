@@ -156,9 +156,7 @@ int drawMenu(const char* title, const Menu* menu, size_t count,
         gfx_print(16, ypos, 0, link_prefix);
         static const int xpos = 16 + CHAR_SIZE_DRC_X * sizeof(link_prefix);
         gfx_set_font_color(COLOR_LINK);
-        // TODO: Underline attribute instead of double-printing?
-        gfx_print(xpos, ypos, 0, "https://github.com/GaryOderNichts/recovery_menu");
-        gfx_print(xpos, ypos, 0, "_______________________________________________");
+        gfx_print(xpos, ypos, GfxPrintFlag_Underline, "https://github.com/GaryOderNichts/recovery_menu");
     }
 
     uint8_t cur_flag = 0;
