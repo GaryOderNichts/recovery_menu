@@ -26,6 +26,7 @@
 #include "socket.h"
 #include "utils.h"
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -260,8 +261,9 @@ void option_SubmitSystemData(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Connected, submitting data...");
-    index += CHAR_SIZE_DRC_Y;
+    static const char submitting_data[] = "Connected, submitting data...";
+    static const int status_xpos = 16 + (CHAR_SIZE_DRC_X * sizeof(submitting_data));
+    gfx_printf(16, index, 0, submitting_data);
 
     // To reduce processing requirements here, we'll submit a simple HTTP/1.0 request
     // without encryption.
@@ -275,21 +277,83 @@ void option_SubmitSystemData(void)
     // TODO: Do we need a newline after the POST data?
     send(httpSocket, http_req, sizeof(http_req)-1, 0);
     send(httpSocket, pdh, sizeof(*pdh), 0);
-    usleep(1000 * 1000);
 
-    // TODO: Check for a return error code.
+    // Wait for a response. (up to 64 bytes)
+    // NOTE: We only want the HTTP response code and message,
+    // so we'll use scanf() to find it.
+    // TODO: Show an error message aside from the HTTP response code?
+    bool ok = false;
+    res = recv(httpSocket, otp, 64, 0);
+    if (res <= 0) {
+        // No data received...
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(status_xpos, index, 0, "No response received from the server.");
+	index += CHAR_SIZE_DRC_Y;
+    } else {
+        // Received data. Check for an HTTP response code.
+        // TODO: Get scanf() and strchr() from IOSU?
+        ok = true;
+        // Response must be in the format: "HTTP/1.1 204 No Content\r\n"
+        // - Can be 1.1 or 1.0.
+        // - Response code must be 3 digits.
+        if (memcmp(otp, "HTTP/1.", 7) != 0) {
+            ok = false;
+        } else if (otp[7] != '0' && otp[7] != '1') {
+            ok = false;
+        } else if (otp[8] != ' ' || otp[12] != ' ' ||
+                  (otp[ 9] < '0' &&  otp[9] > '9') ||
+                  (otp[10] < '0' && otp[10] > '9') ||
+                  (otp[11] < '0' && otp[11] > '9')) {
+            ok = false;
+        }
+
+        if (ok) {
+            // Find the '\r' and NULL it out.
+            ok = false;
+            for (unsigned int i = 13; i < 64; i++) {
+                if (otp[i] == '\r') {
+                    otp[i] = '\0';
+                    ok = true;
+                }
+            }
+        }
+
+        if (!ok) {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_print(status_xpos, index, 0, "Invalid response received from the server.");
+        } else {
+            // If the response code is 2xx, success.
+            // Otherwise, something failed.
+            ok = (otp[9] == '2');
+            gfx_set_font_color(ok ? COLOR_SUCCESS : COLOR_ERROR);
+            gfx_print(status_xpos, index, 0, (const char*)&otp[9]);
+            index += CHAR_SIZE_DRC_Y;
+        }
+    }
+
     closesocket(httpSocket);
-    gfx_set_font_color(COLOR_SUCCESS);
-    gfx_print(16, index, 0, "System data submitted successfully.");
-    index += CHAR_SIZE_DRC_Y;
-    static const char link_prefix[] = "Check out the Wii U console database at:";
-    gfx_print(16, index, 0, link_prefix);
-    static const int xpos = 16 + CHAR_SIZE_DRC_X * sizeof(link_prefix);
-    gfx_set_font_color(COLOR_LINK);
-    // TODO: Underline attribute instead of double-printing?
-    gfx_print(xpos, index, 0, "https://wiiu.gerbilsoft.com/");
-    gfx_print(xpos, index, 0, "____________________________");
-
+    if (ok) {
+        gfx_set_font_color(COLOR_SUCCESS);
+        gfx_print(16, index, 0, "System data submitted successfully.");
+        index += CHAR_SIZE_DRC_Y;
+        static const char link_prefix[] = "Check out the Wii U console database at:";
+        gfx_print(16, index, 0, link_prefix);
+        static const int xpos = 16 + CHAR_SIZE_DRC_X * sizeof(link_prefix);
+        gfx_set_font_color(COLOR_LINK);
+        // TODO: Underline attribute instead of double-printing?
+        gfx_print(xpos, index, 0, "https://wiiu.gerbilsoft.com/");
+        gfx_print(xpos, index, 0, "____________________________");
+    } else {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(16, index, 0, "Failed to submit system data.");
+        index += CHAR_SIZE_DRC_Y;
+        gfx_print(16, index, 0, "Please report a bug on the GitHub issue tracker:");
+        index += CHAR_SIZE_DRC_Y;
+        gfx_set_font_color(COLOR_LINK);
+        // TODO: Underline attribute instead of double-printing?
+        gfx_print(16, index, 0, "https://github.com/GaryOderNichts/recovery_menu/issues");
+        gfx_print(16, index, 0, "______________________________________________________");
+    }
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
     waitButtonInput();
 }
