@@ -24,7 +24,6 @@
 #include "socket.h"
 #include "netconf.h"
 #include "mcp_install.h"
-#include "ccr.h"
 #include "sci.h"
 #include "mcp_misc.h"
 
@@ -32,6 +31,7 @@
 #include <unistd.h>
 
 #include "StartWupserver.h"
+#include "PairDRC.h"
 #include "DebugSystemRegion.h"
 #include "SystemInformation.h"
 #include "SubmitSystemData.h"
@@ -40,7 +40,6 @@ static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
 static void option_DumpOtpAndSeeprom(void);
 static void option_LoadNetConf(void);
-static void option_pairDRC(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
 static void option_Shutdown(void);
@@ -57,7 +56,7 @@ static const Menu mainMenuOptions[] = {
     {"Dump OTP + SEEPROM",          {.callback = option_DumpOtpAndSeeprom}},
     {"Start wupserver",             {.callback = option_StartWupserver}},
     {"Load Network Configuration",  {.callback = option_LoadNetConf}},
-    {"Pair Gamepad",                {.callback = option_pairDRC}},
+    {"Pair Gamepad",                {.callback = option_PairDRC}},
     {"Install WUP",                 {.callback = option_InstallWUP}},
     {"Edit Parental Controls",      {.callback = option_EditParental}},
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
@@ -710,120 +709,6 @@ static void option_LoadNetConf(void)
 
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
     FSA_CloseFile(fsaHandle, cfgHandle);
-}
-
-static void option_pairDRC(void)
-{
-    gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("Pairing Gamepad...");
-
-    uint32_t index = 16 + 8 + 2 + 8;
-
-    int res = CCRCDCSetup();
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "CCRCDCSetup() failed: %x", res);
-
-        waitButtonInput();
-        return;
-    }
-
-    gfx_print(16, index, 0, "Get pincode...");
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    uint8_t pincode[4];
-    res = CCRSysGetPincode(pincode);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get pincode: %x", res);
-
-        waitButtonInput();
-        return;
-    }
-
-    static const char symbol_names[][8] = {
-        "spade",
-        "heart",
-        "diamond",
-        "clubs",
-    };
-
-    gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Pincode: %x%x%x%x (%s %s %s %s)",
-        pincode[0], pincode[1], pincode[2], pincode[3],
-        symbol_names[pincode[0]], symbol_names[pincode[1]], symbol_names[pincode[2]], symbol_names[pincode[3]]);
-    gfx_set_font_color(COLOR_PRIMARY);
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    int timeout = 30; // ~30 seconds
-
-    // display a "this gamepad has already been paired" message, if a gamepad is alrady connected
-    res = CCRCDCDevicePing(CCR_DEST_DRC0);
-    if (res == 0) {
-        gfx_print(16, index, 0, "Gamepad already connected, displaying message...");
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        uint16_t args[2] = { 0, timeout + 5 };
-        CCRCDCSysDrcDisplayMessage(CCR_DEST_DRC0, args);
-    }
-
-    usleep(1000 * 100);
-
-    uint8_t mute = 0xff;
-    CCRCDCPerSetLcdMute(CCR_DEST_DRC0, &mute);
-
-    gfx_print(16, index, 0, "Starting pairing...");
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    res = CCRSysStartPairing(CCR_DEST_DRC0, timeout, pincode);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to start pairing: %x", res);
-
-        waitButtonInput();
-        return;
-    }
-
-    uint32_t status;
-    while (timeout--) {
-        res = CCRCDCWpsStatus(&status);
-        if (res < 0) {
-            gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to get status: %x", res);
-
-            CCRCDCWpsStop();
-
-            waitButtonInput();
-            return;
-        }
-
-        if (status == 0) {
-            // paired
-            break;
-        } else if (status == 2) {
-            // pairing
-        } else if (status == 1) {
-            // searching
-        } else {
-            // error
-            break;
-        }
-
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for Gamepad... (%lx) (Timeout: %d)", status, timeout);
-        usleep(1000 * 1000);
-    }
-
-    if (status != 0 || timeout <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to pair GamePad: %lx", status);
-
-        CCRCDCWpsStop();
-    } else {
-        gfx_set_font_color(COLOR_SUCCESS);
-        gfx_print(16, index, GfxPrintFlag_ClearBG, "Paired GamePad");
-    }
-
-    waitButtonInput();
 }
 
 static void option_InstallWUP(void)
