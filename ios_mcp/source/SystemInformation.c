@@ -31,7 +31,11 @@ void option_SystemInformation(void)
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("System Information");
 
-    uint32_t index = 16 + 8 + 2 + 8;
+    static const uint32_t y_pos_top = 16 + 8 + 2 + 8;
+    static const uint32_t x_pos_left = 16;
+
+    uint32_t y_pos = y_pos_top;
+    uint32_t x_pos = x_pos_left;
 
     // parse OTP/SEEPROM for system information
     // 0x000-0x3FF: OTP
@@ -40,16 +44,18 @@ void option_SystemInformation(void)
     void *dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x800, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
+        gfx_print(x_pos, y_pos, 0, "Out of memory!");
         waitButtonInput();
         return;
     }
-    if (read_otp_seeprom(dataBuffer, index) != 0) {
+    if (read_otp_seeprom(dataBuffer, y_pos) != 0) {
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
     uint8_t* const otp = (uint8_t*)dataBuffer;
     uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
+
+    /** Column 1: Model, serial number, mfg date, keyset, BSP revision **/
 
     // NOTE: gfx_printf() does not support precision specifiers.
     // We'll have to ensure the strings are terminated manually.
@@ -58,33 +64,43 @@ void option_SystemInformation(void)
 
     memcpy(buf1, &seeprom[0xB8], 16);
     buf1[16] = '\0';
-    gfx_printf(16, index, 0, "Model:    %s", buf1);
-    index += CHAR_SIZE_DRC_Y + 4;
+    gfx_printf(x_pos, y_pos, 0, "Model:    %s", buf1);
+    y_pos += CHAR_SIZE_DRC_Y + 4;
 
     memcpy(buf1, &seeprom[0xAC], 8);
     buf1[8] = '\0';
     memcpy(buf2, &seeprom[0xB0], 16);
     buf2[16] = '\0';
-    gfx_printf(16, index, 0, "Serial:   %s%s", buf1, buf2);
-    index += CHAR_SIZE_DRC_Y + 4;
+    gfx_printf(x_pos, y_pos, 0, "Serial:   %s%s", buf1, buf2);
+    y_pos += CHAR_SIZE_DRC_Y + 4;
 
     if (seeprom[0xC4] != 0) {
-        gfx_printf(16, index, 0, "Mfg Date: %04x/%02x/%02x %02x:%02x",
+        gfx_printf(x_pos, y_pos, 0, "Mfg Date: %04x/%02x/%02x %02x:%02x",
             seeprom[0xC4], seeprom[0xC5] >> 8, seeprom[0xC5] & 0xFF,
             seeprom[0xC6] >> 8, seeprom[0xC6] & 0xFF);
-        index += CHAR_SIZE_DRC_Y + 4;
+        y_pos += CHAR_SIZE_DRC_Y + 4;
     }
 
     static const char keyset_tbl[4][8] = {"Factory", "Debug", "Retail", "Invalid"};
-    gfx_printf(16, index, 0, "Keyset:   %s", keyset_tbl[(otp[0x080] & 0x18) >> 3]);
+    gfx_printf(x_pos, y_pos, 0, "Keyset:   %s", keyset_tbl[(otp[0x080] & 0x18) >> 3]);
+    y_pos += CHAR_SIZE_DRC_Y + 4;
 
-    index += CHAR_SIZE_DRC_Y + 4;
-    index += CHAR_SIZE_DRC_Y + 4;
+    uint32_t bsp_rev;
+    int res = bspGetHardwareVersion(&bsp_rev);
+    if (res == 0) {
+        gfx_printf(x_pos, y_pos, 0, "BSP rev:  0x%08lX", bsp_rev);
+    } else {
+        gfx_printf(x_pos, y_pos, 0, "BSP rev:  ERR=%d", res);
+    }
+
+    /** Column 2: boardType, sataDevice, consoleType **/
+    y_pos = y_pos_top;
+    x_pos += (CHAR_SIZE_DRC_X * 32);
 
     memcpy(buf1, &seeprom[0x21], 2);
     buf1[2] = '\0';
-    gfx_printf(16, index, 0, "boardType:   %s", buf1);
-    index += CHAR_SIZE_DRC_Y + 4;
+    gfx_printf(x_pos, y_pos, 0, "boardType:   %s", buf1);
+    y_pos += CHAR_SIZE_DRC_Y + 4;
 
     const unsigned int sataDevice_id = seeprom[0x2C];
     static const char* const sataDevice_tbl[] = {
@@ -97,11 +113,11 @@ void option_SystemInformation(void)
         sataDevice = sataDevice_tbl[sataDevice_id];
     }
     if (sataDevice) {
-        gfx_printf(16, index, 0, "sataDevice:  %u (%s)", sataDevice_id, sataDevice);
+        gfx_printf(x_pos, y_pos, 0, "sataDevice:  %u (%s)", sataDevice_id, sataDevice);
     } else {
-        gfx_printf(16, index, 0, "sataDevice:  %u", sataDevice_id);
+        gfx_printf(x_pos, y_pos, 0, "sataDevice:  %u", sataDevice_id);
     }
-    index += CHAR_SIZE_DRC_Y + 4;
+    y_pos += CHAR_SIZE_DRC_Y + 4;
 
     const unsigned int consoleType_id = seeprom[0x2D];
     static const char* const consoleType_tbl[] = {
@@ -114,30 +130,32 @@ void option_SystemInformation(void)
         consoleType = consoleType_tbl[consoleType_id];
     }
     if (consoleType) {
-        gfx_printf(16, index, 0, "consoleType: %u (%s)", consoleType_id, consoleType);
+        gfx_printf(x_pos, y_pos, 0, "consoleType: %u (%s)", consoleType_id, consoleType);
     } else {
-        gfx_printf(16, index, 0, "consoleType: %u", consoleType_id);
+        gfx_printf(x_pos, y_pos, 0, "consoleType: %u", consoleType_id);
     }
-    index += CHAR_SIZE_DRC_Y + 4;
-    index += CHAR_SIZE_DRC_Y + 4;
+
+    /** Column 3: productArea, gameRegion, Wii U Menu Version **/
+    y_pos = y_pos_top;
+    x_pos += (CHAR_SIZE_DRC_X * 32);
 
     int productArea_id = 0; // 0-6, matches title ID
     int gameRegion;
-    int res = getRegionInfo(&productArea_id, &gameRegion);
+    res = getRegionInfo(&productArea_id, &gameRegion);
     if (res >= 0) {
         // productArea is a single region.
-        gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
-        index += CHAR_SIZE_DRC_Y + 4;
+        gfx_printf(x_pos, y_pos, 0, "productArea: %s", region_tbl[productArea_id]);
+        y_pos += CHAR_SIZE_DRC_Y + 4;
 
         // gameRegion is multiple regions.
-        gfx_printf(16, index, 0, "gameRegion:  %s %s %s %s %s %s",
+        gfx_printf(x_pos, y_pos, 0, "gameRegion:  %s %s %s %s %s %s",
             (gameRegion & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
             (gameRegion & MCP_REGION_USA)    ? region_tbl[1] : "---",
             (gameRegion & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
             (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
             (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
             (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
-        index += CHAR_SIZE_DRC_Y + 4;
+        y_pos += CHAR_SIZE_DRC_Y + 4;
     }
 
     // Wii U Menu version
@@ -173,22 +191,24 @@ void option_SystemInformation(void)
             // Did we find a valid version.bin?
             if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
                 // Found a valid version.bin.
-                gfx_printf(16, index, 0, "Wii U Menu version: %lu.%lu.%lu %c",
+                gfx_printf(x_pos, y_pos, 0, "Wii U Menu version: %lu.%lu.%lu %c",
                     version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
-                index += CHAR_SIZE_DRC_Y + 4;
+                y_pos += CHAR_SIZE_DRC_Y + 4;
             }
         }
     }
 
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 
-    index += CHAR_SIZE_DRC_Y + 4;
+    /** Memory device info **/
+    y_pos = y_pos_top + ((CHAR_SIZE_DRC_Y + 4) * 6);
+    x_pos = x_pos_left;
 
     // Read info about IOS-FS' memory devices
     res = MDReadInfo();
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read memory device info: %x", res);
+        gfx_printf(x_pos, y_pos, 0, "Failed to read memory device info: %x", res);
         waitButtonInput();
         return;
     }
@@ -205,8 +225,8 @@ void option_SystemInformation(void)
             deviceType = "MLC";
         }
 
-        gfx_printf(16, index, 0, "Memory device %d (Type 0x%lx '%s'):", i, drv->params.device_type, deviceType);
-        index += CHAR_SIZE_DRC_Y + 4;
+        gfx_printf(x_pos, y_pos, 0, "Memory device %d (Type 0x%lx '%s'):", i, drv->params.device_type, deviceType);
+        y_pos += CHAR_SIZE_DRC_Y + 4;
 
         const uint16_t mid = drv->params.mid_prv >> 16;
 
@@ -221,34 +241,34 @@ void option_SystemInformation(void)
             manufacturer = "Hynix";
         }
 
-        gfx_printf(16, index, 0, "  Manufacturer ID: 0x%02x (%s)", mid, manufacturer);
-        index += CHAR_SIZE_DRC_Y + 4;
+        gfx_printf(x_pos, y_pos, 0, "  Manufacturer ID: 0x%02x (%s)", mid, manufacturer);
+        y_pos += CHAR_SIZE_DRC_Y + 4;
 
         uint16_t prv = drv->params.mid_prv & 0xff;
 
-        gfx_printf(16, index, 0, "  Product revision: 0x%02x (%d.%d)", prv, prv >> 4, prv & 0xf);
-        index += CHAR_SIZE_DRC_Y + 4;
+        gfx_printf(x_pos, y_pos, 0, "  Product revision: 0x%02x (%d.%d)", prv, prv >> 4, prv & 0xf);
+        y_pos += CHAR_SIZE_DRC_Y + 4;
 
-        gfx_printf(16, index, 0, "  Product name: %s", drv->params.name1);
-        index += CHAR_SIZE_DRC_Y + 4;
+        gfx_printf(x_pos, y_pos, 0, "  Product name: %s", drv->params.name1);
+        y_pos += CHAR_SIZE_DRC_Y + 4;
 
         uint32_t totalSizeMiB = (uint32_t) ((drv->params.numBlocks * drv->params.blockSize) / 1024ull / 1024ull);
-        gfx_printf(16, index, 0, "  Size: %llu x %lu (%lu MiB)", drv->params.numBlocks, drv->params.blockSize, totalSizeMiB);
-        index += CHAR_SIZE_DRC_Y + 4;
+        gfx_printf(x_pos, y_pos, 0, "  Size: %llu x %lu (%lu MiB)", drv->params.numBlocks, drv->params.blockSize, totalSizeMiB);
+        y_pos += CHAR_SIZE_DRC_Y + 4;
 
         // Display the full CID and CSD registers
         uint32_t cid[4];
         res = MDGetCID(drv->deviceId, cid);
         if (res == 0) {
-            gfx_printf(16, index, 0, "  CID: %08lx%08lx%08lx%08lx", cid[0], cid[1], cid[2], cid[3]);
-            index += CHAR_SIZE_DRC_Y + 4;
+            gfx_printf(x_pos, y_pos, 0, "  CID: %08lx%08lx%08lx%08lx", cid[0], cid[1], cid[2], cid[3]);
+            y_pos += CHAR_SIZE_DRC_Y + 4;
         }
 
         uint32_t csd[4];
         res = MDGetCSD(drv->deviceId, csd);
         if (res == 0) {
-            gfx_printf(16, index, 0, "  CSD: %08lx%08lx%08lx%08lx", csd[0], csd[1], csd[2], csd[3]);
-            index += CHAR_SIZE_DRC_Y + 4;
+            gfx_printf(x_pos, y_pos, 0, "  CSD: %08lx%08lx%08lx%08lx", csd[0], csd[1], csd[2], csd[3]);
+            y_pos += CHAR_SIZE_DRC_Y + 4;
         }
     }
 

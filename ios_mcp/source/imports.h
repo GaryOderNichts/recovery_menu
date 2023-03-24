@@ -35,6 +35,39 @@ typedef struct __attribute__((__packed__)) {
 // thumb functions can't just be provided to the linker
 #define setDefaultTitleId ((int (*)(uint64_t tid)) (0x0510d984 | 1))
 
+typedef enum BSPHardwareVersions {
+    BSP_HARDWARE_VERSION_UNKNOWN                    = 0x00000000,
+    BSP_HARDWARE_VERSION_HOLLYWOOD_ENG_SAMPLE_1     = 0x00000001,
+    BSP_HARDWARE_VERSION_HOLLYWOOD_ENG_SAMPLE_2     = 0x10000001,
+    BSP_HARDWARE_VERSION_HOLLYWOOD_PROD_FOR_WII     = 0x10100001,
+    BSP_HARDWARE_VERSION_HOLLYWOOD_CORTADO          = 0x10100008,
+    BSP_HARDWARE_VERSION_HOLLYWOOD_CORTADO_ESPRESSO = 0x1010000C,
+    BSP_HARDWARE_VERSION_BOLLYWOOD                  = 0x20000001,
+    BSP_HARDWARE_VERSION_BOLLYWOOD_PROD_FOR_WII     = 0x20100001,
+    BSP_HARDWARE_VERSION_LATTE_A11_EV               = 0x21100010,
+    BSP_HARDWARE_VERSION_LATTE_A11_CAT              = 0x21100020,
+    BSP_HARDWARE_VERSION_LATTE_A12_EV               = 0x21200010,
+    BSP_HARDWARE_VERSION_LATTE_A12_CAT              = 0x21200020,
+    BSP_HARDWARE_VERSION_LATTE_A2X_EV               = 0x22100010,
+    BSP_HARDWARE_VERSION_LATTE_A2X_CAT              = 0x22100020,
+    BSP_HARDWARE_VERSION_LATTE_A3X_EV               = 0x23100010,
+    BSP_HARDWARE_VERSION_LATTE_A3X_CAT              = 0x23100020,
+    BSP_HARDWARE_VERSION_LATTE_A3X_CAFE             = 0x23100028,
+    BSP_HARDWARE_VERSION_LATTE_A4X_EV               = 0x24100010,
+    BSP_HARDWARE_VERSION_LATTE_A4X_CAT              = 0x24100020,
+    BSP_HARDWARE_VERSION_LATTE_A4X_CAFE             = 0x24100028,
+    BSP_HARDWARE_VERSION_LATTE_A5X_EV               = 0x25100010,
+    BSP_HARDWARE_VERSION_LATTE_A5X_EV_Y             = 0x25100011,
+    BSP_HARDWARE_VERSION_LATTE_A5X_CAT              = 0x25100020,
+    BSP_HARDWARE_VERSION_LATTE_A5X_CAFE             = 0x25100028,
+    BSP_HARDWARE_VERSION_LATTE_B1X_EV               = 0x26100010,
+    BSP_HARDWARE_VERSION_LATTE_B1X_EV_Y             = 0x26100011,
+    BSP_HARDWARE_VERSION_LATTE_B1X_CAT              = 0x26100020,
+    BSP_HARDWARE_VERSION_LATTE_B1X_CAFE             = 0x26100028,
+} BSPHardwareVersions;
+
+int bspGetHardwareVersion(uint32_t* version);
+
 int bspWrite(const char* entity, uint32_t instance, const char* attribute, uint32_t size, const void* buffer);
 int bspRead(const char* entity, uint32_t instance, const char* attribute, uint32_t size, void* buffer);
 
