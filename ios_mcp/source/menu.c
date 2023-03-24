@@ -820,7 +820,7 @@ static void option_pairDRC(void)
         CCRCDCWpsStop();
     } else {
         gfx_set_font_color(COLOR_SUCCESS);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Paired GamePad");
+        gfx_print(16, index, GfxPrintFlag_ClearBG, "Paired GamePad");
     }
 
     waitButtonInput();

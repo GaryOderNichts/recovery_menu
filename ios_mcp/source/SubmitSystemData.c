@@ -245,7 +245,7 @@ void option_SubmitSystemData(void)
     struct hostent* h = gethostbyname(SYSDATA_HOST_NAME);
     if (!h || !h->h_addr) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "gethostbyname() failed; is your DNS server working?");
+        gfx_print(16, index, 0, "gethostbyname() failed; is your DNS server working?");
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
         return;
@@ -270,7 +270,7 @@ void option_SubmitSystemData(void)
 
     static const char submitting_data[] = "Connected, submitting data...";
     static const int status_xpos = 16 + (CHAR_SIZE_DRC_X * sizeof(submitting_data));
-    gfx_printf(16, index, 0, submitting_data);
+    gfx_print(16, index, 0, submitting_data);
 
     // To reduce processing requirements here, we'll submit a simple HTTP/1.0 request
     // without encryption.
