@@ -48,7 +48,8 @@ struct post_data {
     uint16_t ddr3Speed;     // [0x034] seeprom[0x25]
     uint16_t sataDevice;    // [0x036] seeprom[0x2C]
     uint16_t consoleType;   // [0x038] seeprom[0x2D]
-    uint8_t reserved1[6];   // [0x03A]
+    uint16_t reserved1;     // [0x03A]
+    uint32_t bsp_rev;       // [0x03C] bspGetHardwareVersion();
     uint8_t reserved2[80];  // [0x040]
 
     // [0x090]
@@ -102,7 +103,7 @@ void option_SubmitSystemData(void)
         "* System serial number (excluding the last 3 digits)",
         "* Manufacturing date",
         "* Region information",
-        "* Security level (keyset), sataDevice, consoleType",
+        "* Security level (keyset), sataDevice, consoleType, BSP revision",
         "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed",
         "* MLC manufacturer, revision, name, and size",
         "* SHA-256 hash of OTP (to prevent duplicates)",
@@ -148,6 +149,12 @@ void option_SubmitSystemData(void)
     pd->sataDevice = seeprom[0x2C];
     pd->consoleType = seeprom[0x2D];
 
+    // BSP revision
+    int res = bspGetHardwareVersion(&pd->bsp_rev);
+    if (res != 0) {
+        pd->bsp_rev = 0;
+    }
+
     // System serial number
     // NOTE: Assuming code+serial doesn't exceed 15 chars (plus NULL).
     snprintf(pd->system_serial, sizeof(pd->system_serial), "%s%s",
@@ -168,7 +175,7 @@ void option_SubmitSystemData(void)
 
     // Region information
     int productArea_id, gameRegion;
-    int res = getRegionInfo(&productArea_id, &gameRegion);
+    res = getRegionInfo(&productArea_id, &gameRegion);
     if (res == 0) {
         // Region info obtained. (If not obtained, these will be 0.)
         pd->productArea = (uint8_t)productArea_id;
