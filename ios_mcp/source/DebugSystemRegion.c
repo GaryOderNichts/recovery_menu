@@ -60,8 +60,7 @@ void option_DebugSystemRegion(void)
         (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
         (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
         (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
-    index += CHAR_SIZE_DRC_Y + 4;
-    index += CHAR_SIZE_DRC_Y + 4;
+    index += ((CHAR_SIZE_DRC_Y + 4) * 2);
 
     // Wii U Menu path ('x' is at path[43])
     char path[] = "/vol/storage_mlc01/sys/title/00050010/10040x00/code/app.xml";
@@ -101,7 +100,8 @@ void option_DebugSystemRegion(void)
     // Is the menu region in gameRegion?
     menu_is_in_gameRegion = (gameRegion & (1U << menu_productArea_id));
 
-    gfx_print(16, index, 0, "Installed Wii U Menu: ");
+    static const char inst_menu[] = "Installed Wii U Menu:";
+    gfx_print(16, index, 0, inst_menu);
     const char* menu_region_str;
     if (menu_count == 0 || menu_productArea_id < 0) {
         menu_region_str = "NONE";
@@ -114,7 +114,7 @@ void option_DebugSystemRegion(void)
         gfx_set_font_color(COLOR_SUCCESS);
     }
 
-    gfx_print(16+(22*CHAR_SIZE_DRC_X), index, 0, menu_region_str);
+    gfx_print(16 + (CHAR_SIZE_DRC_X * sizeof(inst_menu)), index, 0, menu_region_str);
     index += CHAR_SIZE_DRC_Y + 4;
 
     if (menu_matches_region && menu_is_in_gameRegion) {
@@ -192,8 +192,6 @@ void option_DebugSystemRegion(void)
     } else {
         gfx_set_font_color(COLOR_SUCCESS);
         gfx_printf(16, index, 0, "System region set to %s successfully.", menu_region_str);
-        waitButtonInput();
-        return;
     }
 
     waitButtonInput();
