@@ -39,7 +39,32 @@ typedef enum GfxPrintFlags {
     GfxPrintFlag_Underline      = (1U << 2),
 } GfxPrintFlags;
 
-void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* string);
+/**
+ * Print text to the TV and DRC.
+ *
+ * Handles automatic newlines. ('\n' to go the next line)
+ * NOTE: Automatic newlines might not work properly with AlignRight.
+ *
+ * @param x X position
+ * @param y Y position
+ * @param gfxPrintFlags GfxPrintFlags
+ * @param str Text to print
+ * @return New Y position. (If no '\n' characters were included, same as the input y value.)
+ */
+uint32_t gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* str);
 
+/**
+ * Print text to the TV and DRC using printf()-style formatting.
+ *
+ * Handles automatic newlines. ('\n' to go the next line)
+ * NOTE: Automatic newlines might not work properly with AlignRight.
+ *
+ * @param x X position
+ * @param y Y position
+ * @param gfxPrintFlags GfxPrintFlags
+ * @param format printf()-style format
+ * @param ... Format parameters
+ * @return New Y position. (If no '\n' characters were included, same as the input y value.)
+ */
 __attribute__((format(printf, 4, 5)))
-void gfx_printf(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* format, ...);
+uint32_t gfx_printf(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* format, ...);

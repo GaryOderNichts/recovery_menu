@@ -165,31 +165,25 @@ void option_SubmitSystemData(void)
         return;
     }
 
-    static const char *const desc_lines[] = {
-        "This will submit statistical data to the developers of recovery_menu,",
-        "which will help to determine various statistics about Wii U consoles,",
-        "e.g. eMMC manufacturers. The submitted data may be publicly accessible",
-        "but personally identifying information will be kept confidential.",
-        NULL,
-        "Information that will be submitted:",
-        "* System model",
-        "* System serial number (excluding the last 3 digits)",
-        "* Manufacturing date",
-        "* Region information",
-        "* Security level (keyset), sataDevice, consoleType, BSP revision",
-        "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed",
-        "* MLC manufacturer, revision, name, and size",
-        "* SHA-256 hash of OTP (to prevent duplicates)",
-        NULL,
-        "Do you want to submit your console's system data?",
-    };
+    static const char desc[] =
+        "This will submit statistical data to the developers of recovery_menu,\n"
+        "which will help to determine various statistics about Wii U consoles,\n"
+        "e.g. eMMC manufacturers. The submitted data may be publicly accessible\n"
+        "but personally identifying information will be kept confidential.\n"
+        "\n"
+        "Information that will be submitted:\n"
+        "* System model\n"
+        "* System serial number (excluding the last 3 digits)\n"
+        "* Manufacturing date\n"
+        "* Region information\n"
+        "* Security level (keyset), sataDevice, consoleType, BSP revision\n"
+        "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed\n"
+        "* MLC manufacturer, revision, name, and size\n"
+        "* SHA-256 hash of OTP (to prevent duplicates)\n"
+        "\n"
+        "Do you want to submit your console's system data?\n";
     gfx_set_font_color(COLOR_PRIMARY);
-    for (unsigned int i = 0; i < ARRAY_SIZE(desc_lines); i++) {
-        if (desc_lines[i]) {
-            gfx_print(16, index, 0, desc_lines[i]);
-        }
-        index += CHAR_SIZE_DRC_Y;
-    }
+    index = gfx_print(16, index, 0, desc);
     index += 4;
 
     static const Menu submitSystemDataOptions[] = {
@@ -287,7 +281,7 @@ void option_SubmitSystemData(void)
         if (res == 0) {
             // Add some more stuff to the hash.
             // NOTE: Reusing the OTP buffer here.
-            memcpy(otp, desc_lines[0], 64);
+            memcpy(otp, desc, 64);
             res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), otp, 64, IOSC_HASH_FLAGS_FINALIZE, pdh->post_sha256, sizeof(pdh->post_sha256));
         }
     }
@@ -409,10 +403,9 @@ void option_SubmitSystemData(void)
         gfx_set_font_color(COLOR_LINK);
         gfx_print(xpos, index, GfxPrintFlag_Underline, "https://" SYSDATA_HOST_NAME "/");
     } else {
-        gfx_print(16, index, 0, "Failed to submit system data.");
-        index += CHAR_SIZE_DRC_Y;
-        gfx_print(16, index, 0, "Please report a bug on the GitHub issue tracker:");
-        index += CHAR_SIZE_DRC_Y;
+        index = gfx_print(16, index, 0,
+            "Failed to submit system data.\n"
+            "Please report a bug on the GitHub issue tracker:\n");
         gfx_set_font_color(COLOR_LINK);
         gfx_print(16, index, GfxPrintFlag_Underline, "https://github.com/GaryOderNichts/recovery_menu/issues");
     }
