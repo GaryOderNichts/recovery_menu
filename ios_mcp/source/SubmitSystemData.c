@@ -69,6 +69,78 @@ struct post_data_hashed {
     uint8_t post_sha256[32];    // [0x140] SHA-256 hash of post_data, with adjustments
 };  // size == 0x160 (352)
 
+/**
+ * Get data from the received HTTP response header.
+ *
+ * NOTE: This modifies the HTTP response header to add
+ * NUL bytes in order to parse individual messages.
+ *
+ * @param in_buf    [in] HTTP response header
+ * @param len       [in] Size of HTTP response header
+ * @param out_resp  [out] Start of "200 OK" or other response code
+ * @param out_body  [out] Message body, or NULL if not available
+ * @return 0 on success; non-zero if the header is invalid.
+ */
+static int parse_http_response(char *buf, size_t len, const char **out_resp, const char **out_body)
+{
+    // Start of the buffer must be in the format: "HTTP/1.x 200 OK\r\n"
+    // - Can be 1.1 or 1.0.
+    // - Response code must be 3 digits.
+    if (len < 64) {
+        // Not enough data in the buffer to parse anything.
+        return -1;
+    }
+    *out_resp = NULL;
+    *out_body = NULL;
+    char *const p_end = buf + len;
+
+    // Check for an HTTP response code.
+    // TODO: Get scanf() and strchr() from IOSU?
+    if (memcmp(buf, "HTTP/1.", 7) != 0)
+        return -1;
+    if (buf[7] != '0' && buf[7] != '1')
+        return -1;
+    if (buf[ 8] != ' ' || buf[12] != ' ' ||
+       (buf[ 9] < '0' && buf[ 9] > '9') ||
+       (buf[10] < '0' && buf[10] > '9') ||
+       (buf[11] < '0' && buf[11] > '9')) {
+        return -2;
+    }
+
+    // Find the '\r' and NULL it out.
+    char *p = &buf[13];
+    for (; p < p_end; p++) {
+        if (*p == '\r') {
+            *p = '\0';
+            *out_resp = &buf[9];
+            p++;
+            break;
+        }
+    }
+    if (p == p_end)
+        return -3;
+
+    // Find the end of the response header and the start of the message body.
+    // This is delimited with the string "\r\n\r\n".
+    // NOTE: If 204, there is no message body, but the server shouldn't
+    // respond with 204.
+    // TODO: Check "Content-Length"?
+    for (; p < (p_end - 3); p++) {
+        if (*p == '\r') {
+            // Check if this is "\r\n\r\n".
+            if (!memcmp(p, "\r\n\r\n", 4)) {
+                // Found the start of the message body.
+                p += 4;
+                if (p < p_end) {
+                    *out_body = p;
+                }
+                break;
+            }
+        }
+    }
+    return 0;
+}
+
 void option_SubmitSystemData(void)
 {
     gfx_clear(COLOR_BACKGROUND);
@@ -80,7 +152,8 @@ void option_SubmitSystemData(void)
     // 0x000-0x3FF: OTP
     // 0x400-0x5FF: SEEPROM
     // 0x600-0x7FF: post_data_hashed
-    void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x800, 0x40);
+#define DATA_BUFFER_SIZE 0x800
+    void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, DATA_BUFFER_SIZE, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Out of memory!");
@@ -285,62 +358,49 @@ void option_SubmitSystemData(void)
     send(httpSocket, http_req, sizeof(http_req)-1, 0);
     send(httpSocket, pdh, sizeof(*pdh), 0);
 
-    // Wait for a response. (up to 64 bytes)
+    // Wait for a response.
     // NOTE: We only want the HTTP response code and message,
     // so we'll use scanf() to find it.
     // TODO: Show an error message aside from the HTTP response code?
     bool ok = false;
-    res = recv(httpSocket, otp, 64, 0);
+    res = recv(httpSocket, otp, DATA_BUFFER_SIZE, 0);
+    otp[DATA_BUFFER_SIZE] = 0;
     if (res <= 0) {
         // No data received...
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(status_xpos, index, 0, "No response received from the server.");
-	index += CHAR_SIZE_DRC_Y;
+        index += CHAR_SIZE_DRC_Y;
     } else {
-        // Received data. Check for an HTTP response code.
-        // TODO: Get scanf() and strchr() from IOSU?
-        ok = true;
-        // Response must be in the format: "HTTP/1.1 204 No Content\r\n"
-        // - Can be 1.1 or 1.0.
-        // - Response code must be 3 digits.
-        if (memcmp(otp, "HTTP/1.", 7) != 0) {
-            ok = false;
-        } else if (otp[7] != '0' && otp[7] != '1') {
-            ok = false;
-        } else if (otp[8] != ' ' || otp[12] != ' ' ||
-                  (otp[ 9] < '0' &&  otp[9] > '9') ||
-                  (otp[10] < '0' && otp[10] > '9') ||
-                  (otp[11] < '0' && otp[11] > '9')) {
-            ok = false;
+        // Received data. Parse the header.
+        if (res < DATA_BUFFER_SIZE) {
+            otp[res] = 0;
         }
-
-        if (ok) {
-            // Find the '\r' and NULL it out.
-            ok = false;
-            for (unsigned int i = 13; i < 64; i++) {
-                if (otp[i] == '\r') {
-                    otp[i] = '\0';
-                    ok = true;
-                }
-            }
-        }
-
-        if (!ok) {
-            gfx_set_font_color(COLOR_ERROR);
-            gfx_print(status_xpos, index, 0, "Invalid response received from the server.");
-        } else {
+        const char *resp = NULL, *body = NULL;
+        res = parse_http_response((char*)otp, res, &resp, &body);
+        if (res == 0 && resp) {
             // If the response code is 2xx, success.
             // Otherwise, something failed.
-            ok = (otp[9] == '2');
+            ok = (resp[0] == '2');
             gfx_set_font_color(ok ? COLOR_SUCCESS : COLOR_ERROR);
-            gfx_print(status_xpos, index, 0, (const char*)&otp[9]);
+            gfx_print(status_xpos, index, 0, resp);
             index += CHAR_SIZE_DRC_Y;
+            if (body) {
+                // Print the message body.
+                // TODO: Handle newlines if present?
+                // TODO: Limit number of characters?
+                gfx_print(16, index, 0, body);
+                index += CHAR_SIZE_DRC_Y;
+            }
+            index += CHAR_SIZE_DRC_Y;
+        } else {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_print(status_xpos, index, 0, "Invalid response received from the server.");
         }
     }
 
     closesocket(httpSocket);
+    gfx_set_font_color(COLOR_PRIMARY);
     if (ok) {
-        gfx_set_font_color(COLOR_SUCCESS);
         gfx_print(16, index, 0, "System data submitted successfully.");
         index += CHAR_SIZE_DRC_Y;
         static const char link_prefix[] = "Check out the Wii U console database at:";
@@ -349,7 +409,6 @@ void option_SubmitSystemData(void)
         gfx_set_font_color(COLOR_LINK);
         gfx_print(xpos, index, GfxPrintFlag_Underline, "https://" SYSDATA_HOST_NAME "/");
     } else {
-        gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Failed to submit system data.");
         index += CHAR_SIZE_DRC_Y;
         gfx_print(16, index, 0, "Please report a bug on the GitHub issue tracker:");
