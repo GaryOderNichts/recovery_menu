@@ -37,6 +37,7 @@ typedef enum GfxPrintFlags {
     GfxPrintFlag_AlignRight     = (1U << 0),
     GfxPrintFlag_ClearBG        = (1U << 1),
     GfxPrintFlag_Underline      = (1U << 2),
+    GfxPrintFlag_NewlinePlus4   = (1U << 3),    // Newlines should have +4
 } GfxPrintFlags;
 
 /**

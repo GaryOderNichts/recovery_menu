@@ -240,34 +240,30 @@ void option_SystemInformation(void)
         } else if (mid == 0x90) {
             manufacturer = "Hynix";
         }
+        const uint16_t prv = drv->params.mid_prv & 0xff;
+        const uint32_t totalSizeMiB = (uint32_t) ((drv->params.numBlocks * drv->params.blockSize) / 1024ull / 1024ull);
 
-        gfx_printf(x_pos, y_pos, 0, "  Manufacturer ID: 0x%02x (%s)", mid, manufacturer);
-        y_pos += CHAR_SIZE_DRC_Y + 4;
-
-        uint16_t prv = drv->params.mid_prv & 0xff;
-
-        gfx_printf(x_pos, y_pos, 0, "  Product revision: 0x%02x (%d.%d)", prv, prv >> 4, prv & 0xf);
-        y_pos += CHAR_SIZE_DRC_Y + 4;
-
-        gfx_printf(x_pos, y_pos, 0, "  Product name: %s", drv->params.name1);
-        y_pos += CHAR_SIZE_DRC_Y + 4;
-
-        uint32_t totalSizeMiB = (uint32_t) ((drv->params.numBlocks * drv->params.blockSize) / 1024ull / 1024ull);
-        gfx_printf(x_pos, y_pos, 0, "  Size: %llu x %lu (%lu MiB)", drv->params.numBlocks, drv->params.blockSize, totalSizeMiB);
-        y_pos += CHAR_SIZE_DRC_Y + 4;
+        x_pos += (CHAR_SIZE_DRC_X * 2);
+        y_pos = gfx_printf(x_pos, y_pos, GfxPrintFlag_NewlinePlus4,
+            "Manufacturer ID: 0x%02x (%s)\n"
+            "Product revision: 0x%02x (%d.%d)\n"
+            "Product name: %s\n"
+            "Size: %llu x %lu (%lu MiB)\n",
+            mid, manufacturer, prv, prv >> 4, prv & 0xf, drv->params.name1,
+            drv->params.numBlocks, drv->params.blockSize, totalSizeMiB);
 
         // Display the full CID and CSD registers
         uint32_t cid[4];
         res = MDGetCID(drv->deviceId, cid);
         if (res == 0) {
-            gfx_printf(x_pos, y_pos, 0, "  CID: %08lx%08lx%08lx%08lx", cid[0], cid[1], cid[2], cid[3]);
+            gfx_printf(x_pos, y_pos, 0, "CID: %08lx%08lx%08lx%08lx", cid[0], cid[1], cid[2], cid[3]);
             y_pos += CHAR_SIZE_DRC_Y + 4;
         }
 
         uint32_t csd[4];
         res = MDGetCSD(drv->deviceId, csd);
         if (res == 0) {
-            gfx_printf(x_pos, y_pos, 0, "  CSD: %08lx%08lx%08lx%08lx", csd[0], csd[1], csd[2], csd[3]);
+            gfx_printf(x_pos, y_pos, 0, "CSD: %08lx%08lx%08lx%08lx", csd[0], csd[1], csd[2], csd[3]);
             y_pos += CHAR_SIZE_DRC_Y + 4;
         }
     }

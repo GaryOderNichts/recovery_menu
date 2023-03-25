@@ -213,6 +213,9 @@ uint32_t gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* s
             // Newline; go to the start of the next line.
             x = orig_x;
             y += CHAR_SIZE_DRC_Y;
+            if (gfxPrintFlags & GfxPrintFlag_NewlinePlus4) {
+                y += 4;
+            }
             continue;
         }
 
