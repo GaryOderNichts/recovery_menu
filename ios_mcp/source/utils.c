@@ -9,7 +9,7 @@
 
 #define HW_RSTB 0x0d800194
 
-static NOTIF_LED oldLedState = NOTIF_LED_PURPLE;
+static volatile uint8_t oldLedState = (uint8_t)NOTIF_LED_PURPLE;
 static int ledTid = -1;
 static volatile bool ledCanceled;
 static uint8_t ledThreadStack[0x400] __attribute__((aligned(0x20)));
@@ -113,13 +113,14 @@ static int ledThread(void *arg)
             return 0;
     }
 
-    bspWrite("SMC", 0, "NotificationLED", 1, &oldLedState);
+    bspWrite("SMC", 0, "NotificationLED", 1, (uint8_t *)&oldLedState);
     return 0;
 }
 
 void setNotificationLED(NOTIF_LED state, uint32_t duration)
 {
-    if(state == oldLedState)
+    uint8_t state8 = (uint8_t)state;
+    if(state8 == oldLedState)
         return;
 
     if(ledTid != -1)
@@ -129,7 +130,7 @@ void setNotificationLED(NOTIF_LED state, uint32_t duration)
         ledTid = -1;
     }
 
-    bspWrite("SMC", 0, "NotificationLED", 1, &state);
+    bspWrite("SMC", 0, "NotificationLED", 1, &state8);
 
     if(duration != 0)
     {
@@ -138,7 +139,7 @@ void setNotificationLED(NOTIF_LED state, uint32_t duration)
         IOS_StartThread(ledTid);
     }
     else
-        oldLedState = state;
+        oldLedState = state8;
 }
 
 int setDrivePower(int power)
