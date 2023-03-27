@@ -108,7 +108,7 @@ static int ledThread(void *arg)
 {
     for(uint32_t i = 0; i < (uint32_t)arg; ++i)
     {
-        usleep(1);
+        usleep(10);
         if(ledCanceled)
             return 0;
     }
@@ -119,10 +119,6 @@ static int ledThread(void *arg)
 
 void setNotificationLED(NOTIF_LED state, uint32_t duration)
 {
-    uint8_t state8 = (uint8_t)state;
-    if(state8 == oldLedState)
-        return;
-
     if(ledTid != -1)
     {
         ledCanceled = true;
@@ -130,8 +126,13 @@ void setNotificationLED(NOTIF_LED state, uint32_t duration)
         ledTid = -1;
     }
 
+    uint8_t state8 = (uint8_t)state;
+    if(state8 == oldLedState)
+        return;
+
     bspWrite("SMC", 0, "NotificationLED", 1, &state8);
 
+    duration /= 10;
     if(duration != 0)
     {
         ledCanceled = false;
