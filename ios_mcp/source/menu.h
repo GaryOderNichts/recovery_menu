@@ -71,10 +71,10 @@ void waitButtonInput(void);
 
 /**
  * Initialize the network configuration.
- * @param index Starting Y position.
- * @return Next Y position, or 0 if an error occurred.
+ * @param index [in/out] Starting (and ending) Y position.
+ * @return 0 on success; non-zero on error.
  */
-uint32_t initNetconf(uint32_t index);
+int initNetconf(uint32_t* index);
 
 /* Region code string table */
 static const char region_tbl[7][4] = {

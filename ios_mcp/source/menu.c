@@ -463,23 +463,23 @@ static void option_DumpOtpAndSeeprom(void)
 
 /**
  * Initialize the network configuration.
- * @param index Starting Y position.
- * @return Next Y position, or 0 if an error occurred.
+ * @param index [in/out] Starting (and ending) Y position.
+ * @return 0 on success; non-zero on error.
  */
-uint32_t initNetconf(uint32_t index)
+int initNetconf(uint32_t* index)
 {
-    gfx_print(16, index, 0, "Initializing netconf...");
-    index += CHAR_SIZE_DRC_Y;
+    gfx_print(16, *index, 0, "Initializing netconf...");
+    *index += CHAR_SIZE_DRC_Y;
 
     int res = netconf_init();
     if (res <= 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
+        gfx_printf(16, *index, 0, "Failed to initialize netconf: %x", res);
         waitButtonInput();
-        return 0;
+        return res;
     }
 
-    gfx_printf(16, index, 0, "Waiting for network connection... %ds", 5);
+    gfx_printf(16, *index, 0, "Waiting for network connection... %ds", 5);
 
     NetConfInterfaceTypeEnum interface = 0xff;
     for (int i = 0; i < 5; i++) {
@@ -494,43 +494,43 @@ uint32_t initNetconf(uint32_t index)
         }
 
         usleep(1000 * 1000);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
+        gfx_printf(16, *index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
     }
 
-    index += CHAR_SIZE_DRC_Y;
+    *index += CHAR_SIZE_DRC_Y;
 
     if (interface == 0xff) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "No network connection!");
+        gfx_print(16, *index, 0, "No network connection!");
         waitButtonInput();
-        return 0;
+        return 1;
     }
 
-    gfx_printf(16, index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
-    index += CHAR_SIZE_DRC_Y;
+    gfx_printf(16, *index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
+    *index += CHAR_SIZE_DRC_Y;
 
     uint8_t ip_address[4];
     res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get IP address: %x", res);
+        gfx_printf(16, *index, 0, "Failed to get IP address: %x", res);
         waitButtonInput();
-        return 0;
+        return res;
     }
 
-    gfx_printf(16, index, 0, "IP address: %u.%u.%u.%u",
+    gfx_printf(16, *index, 0, "IP address: %u.%u.%u.%u",
         ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-    index += CHAR_SIZE_DRC_Y;
+    *index += CHAR_SIZE_DRC_Y;
 
     res = socketInit();
     if (res <= 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize socketlib: %x", res);
+        gfx_printf(16, *index, 0, "Failed to initialize socketlib: %x", res);
         waitButtonInput();
-        return 0;
+        return res;
     }
 
-    return index;
+    return 0;
 }
 
 static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, const char* key, const char* value, uint32_t value_len)

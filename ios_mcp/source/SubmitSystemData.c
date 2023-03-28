@@ -291,8 +291,8 @@ void option_SubmitSystemData(void)
 
     // Initialize the network.
     index = 16 + 8 + 2 + 8;
-    index = initNetconf(index);
-    if (index == 0) {
+    res = initNetconf(&index);
+    if (res != 0) {
         // An error occurred while initializing netconf.
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();

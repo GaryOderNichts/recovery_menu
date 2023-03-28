@@ -32,8 +32,8 @@ void option_StartWupserver(void)
     drawTopBar("Running wupserver...");
 
     uint32_t index = 16 + 8 + 2 + 8;
-    index = initNetconf(index);
-    if (index == 0) {
+    int res = initNetconf(&index);
+    if (res != 0) {
         // An error occurred while initializing netconf.
         waitButtonInput();
         return;
