@@ -50,10 +50,12 @@ struct post_data {
     uint16_t consoleType;   // [0x038] seeprom[0x2D]
     uint16_t reserved1;     // [0x03A]
     uint32_t bsp_rev;       // [0x03C] bspGetHardwareVersion();
-    uint8_t reserved2[80];  // [0x040]
+    uint16_t ddr3Vendor;    // [0x040] seeprom[0x29]
+    uint8_t reserved2[62];  // [0x042]
 
-    // [0x090]
+    // [0x080]
     struct {
+        uint32_t cid[4];    // [0x080] CID
         uint32_t mid_prv;   // [0x090] Manufacturer and product revision
         uint32_t blockSize; // [0x094] Block size
         uint64_t numBlocks; // [0x098] Number of blocks
@@ -177,8 +179,8 @@ void option_SubmitSystemData(void)
         "* Manufacturing date\n"
         "* Region information\n"
         "* Security level (keyset), sataDevice, consoleType, BSP revision\n"
-        "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed\n"
-        "* MLC manufacturer, revision, name, and size\n"
+        "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed, ddr3Vendor\n"
+        "* MLC manufacturer, revision, name, size, and CID\n"
         "* SHA-256 hash of OTP (to prevent duplicates)\n"
         "\n"
         "Do you want to submit your console's system data?\n";
@@ -213,6 +215,7 @@ void option_SubmitSystemData(void)
     pd->bootSource = seeprom[0x23];
     pd->ddr3Size = seeprom[0x24];
     pd->ddr3Speed = seeprom[0x25];
+    pd->ddr3Vendor = seeprom[0x29];
     pd->sataDevice = seeprom[0x2C];
     pd->consoleType = seeprom[0x2D];
 
@@ -258,6 +261,11 @@ void option_SubmitSystemData(void)
             continue;
         }
 
+        res = MDGetCID(drv->deviceId, pd->mlc.cid);
+        if (res != 0) {
+            // Error obtaining the CID. Set it to all zeroes.
+            memset(pd->mlc.cid, 0, sizeof(pd->mlc.cid));
+        }
         pd->mlc.mid_prv = drv->params.mid_prv;
         pd->mlc.numBlocks = drv->params.numBlocks;
         pd->mlc.blockSize = drv->params.blockSize;
