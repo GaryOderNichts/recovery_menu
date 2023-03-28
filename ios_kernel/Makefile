@@ -40,7 +40,7 @@ INCLUDES	:= source
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-CFLAGS	:= -Wall -Werror=implicit-function-declaration -std=gnu11 -Os \
+CFLAGS	:= -Wall -Werror=implicit-function-declaration -Werror=int-conversion -std=gnu11 -Os \
 	-flto $(MACHDEP) $(INCLUDE) -Wno-stringop-overflow
 
 ASFLAGS	:= $(MACHDEP)
