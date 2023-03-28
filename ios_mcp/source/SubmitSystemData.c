@@ -153,7 +153,7 @@ void option_SubmitSystemData(void)
     // 0x400-0x5FF: SEEPROM
     // 0x600-0x7FF: post_data_hashed
 #define DATA_BUFFER_SIZE 0x800
-    void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, DATA_BUFFER_SIZE, 0x40);
+    uint8_t* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, DATA_BUFFER_SIZE, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_print(16, index, 0, "Out of memory!");
@@ -198,7 +198,7 @@ void option_SubmitSystemData(void)
     index += (CHAR_SIZE_DRC_Y*(ARRAY_SIZE(submitSystemDataOptions)+1)) + 4;
 
     /** Get the data and submit it. **/
-    uint8_t* const otp = (uint8_t*)dataBuffer;
+    uint8_t* const otp = dataBuffer;
     uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
     struct post_data_hashed* const pdh = (struct post_data_hashed*)dataBuffer + 0x600;
     struct post_data* const pd = &pdh->data;
@@ -353,12 +353,11 @@ void option_SubmitSystemData(void)
     send(httpSocket, pdh, sizeof(*pdh), 0);
 
     // Wait for a response.
-    // NOTE: We only want the HTTP response code and message,
-    // so we'll use scanf() to find it.
+    // NOTE: Reusing dataBuffer here.
     // TODO: Show an error message aside from the HTTP response code?
     bool ok = false;
-    res = recv(httpSocket, otp, DATA_BUFFER_SIZE, 0);
-    otp[DATA_BUFFER_SIZE] = 0;
+    res = recv(httpSocket, dataBuffer, DATA_BUFFER_SIZE-1, 0);
+    dataBuffer[DATA_BUFFER_SIZE-1] = 0;
     if (res <= 0) {
         // No data received...
         gfx_set_font_color(COLOR_ERROR);
@@ -367,10 +366,10 @@ void option_SubmitSystemData(void)
     } else {
         // Received data. Parse the header.
         if (res < DATA_BUFFER_SIZE) {
-            otp[res] = 0;
+            dataBuffer[res] = 0;
         }
         const char *resp = NULL, *body = NULL;
-        res = parse_http_response((char*)otp, res, &resp, &body);
+        res = parse_http_response((char*)dataBuffer, res, &resp, &body);
         if (res == 0 && resp) {
             // If the response code is 2xx, success.
             // Otherwise, something failed.
