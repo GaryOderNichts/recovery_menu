@@ -182,7 +182,7 @@ void option_SystemInformation(void)
     y_pos += CHAR_SIZE_DRC_Y + 4;
 
     gfx_printf(x_pos, y_pos, GfxPrintFlag_NewlinePlus4,
-        "ddr3Size:   %u MiB\nddr3Speed:  %u\nddr3Vendor: 0x%04X",
+        "ddr3Size:    %u MiB\nddr3Speed:   %u\nddr3Vendor:  0x%04X",
         seeprom[0x24], seeprom[0x25], seeprom[0x29]);
 
     /** Column 3: productArea, gameRegion, Wii U Menu Version **/
