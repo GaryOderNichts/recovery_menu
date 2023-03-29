@@ -26,6 +26,44 @@
 #include <stdint.h>
 #include <string.h>
 
+// BSP revisions
+typedef struct bsp_rev_t {
+    uint32_t bsp_rev;
+    const char *desc;
+} bsp_rev_t;
+static const bsp_rev_t bsp_rev_tbl[] = {
+    {0x00000001, "Hollywood ES1"},
+    {0x10000001, "Hollywood ES2"},
+    {0x10100001, "Hollywood Prod for Wii"},
+    {0x10100008, "Hollywood Cortado"},
+    {0x1010000C, "Hollywood Cortado Espresso"},
+    {0x20000001, "Bollywood"},
+    {0x20100001, "Bollywood Prod for Wii"},
+    {0x21100010, "Latte A11 EV"},
+    {0x21100020, "Latte A11 CAT"},
+    {0x21200010, "Latte A12 EV"},
+    {0x21200020, "Latte A12 CAT"},
+    {0x22100010, "Latte A2X EV"},
+    {0x22100020, "Latte A2X CAT"},
+    {0x23100010, "Latte A3X EV"},
+    {0x23100020, "Latte A3X CAT"},
+    {0x23100028, "Latte A3X CAFE"},
+    {0x24100010, "Latte A4X EV"},
+    {0x24100020, "Latte A4X CAT"},
+    {0x24100028, "Latte A4X CAFE"},
+    {0x25100010, "Latte A5X EV"},
+    {0x25100010, "Latte A5X EV_Y"},
+    {0x25100020, "Latte A5X CAT"},
+    {0x25100028, "Latte A5X CAFE"},
+    {0x26100010, "Latte B1X EV"},
+    {0x26100010, "Latte B1X EV_Y"},
+    {0x26100020, "Latte B1X CAT"},
+    {0x26100028, "Latte B1X CAFE"},
+
+    {0, NULL}
+};
+
+
 void option_SystemInformation(void)
 {
     gfx_clear(COLOR_BACKGROUND);
@@ -92,8 +130,15 @@ void option_SystemInformation(void)
     } else {
         gfx_printf(x_pos, y_pos, 0, "BSP rev:  ERR=%d", res);
     }
+    for (const bsp_rev_t *p = bsp_rev_tbl; p->bsp_rev != 0; p++) {
+        if (p->bsp_rev == bsp_rev) {
+            y_pos += CHAR_SIZE_DRC_Y + 4;
+            gfx_print(x_pos + (CHAR_SIZE_DRC_X*10), y_pos, 0, p->desc);
+            break;
+        }
+    }
 
-    /** Column 2: boardType, sataDevice, consoleType **/
+    /** Column 2: boardType, sataDevice, consoleType, ddr3Size, ddr3Speed, ddr3Vendor **/
     y_pos = y_pos_top;
     x_pos += (CHAR_SIZE_DRC_X * 32);
 
@@ -134,6 +179,11 @@ void option_SystemInformation(void)
     } else {
         gfx_printf(x_pos, y_pos, 0, "consoleType: %u", consoleType_id);
     }
+    y_pos += CHAR_SIZE_DRC_Y + 4;
+
+    gfx_printf(x_pos, y_pos, GfxPrintFlag_NewlinePlus4,
+        "ddr3Size:   %u MiB\nddr3Speed:  %u\nddr3Vendor: 0x%04X",
+        seeprom[0x24], seeprom[0x25], seeprom[0x29]);
 
     /** Column 3: productArea, gameRegion, Wii U Menu Version **/
     y_pos = y_pos_top;
@@ -201,7 +251,7 @@ void option_SystemInformation(void)
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 
     /** Memory device info **/
-    y_pos = y_pos_top + ((CHAR_SIZE_DRC_Y + 4) * 6);
+    y_pos = y_pos_top + ((CHAR_SIZE_DRC_Y + 4) * 7);
     x_pos = x_pos_left;
 
     // Read info about IOS-FS' memory devices
