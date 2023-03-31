@@ -356,9 +356,22 @@ void option_SubmitSystemData(void)
         "Content-Length: 352\r\n\r\n";
 
     // Send the HTTP request.
-    // TODO: Do we need a newline after the POST data?
-    send(httpSocket, http_req, sizeof(http_req)-1, 0);
-    send(httpSocket, pdh, sizeof(*pdh), 0);
+    res = send(httpSocket, http_req, sizeof(http_req)-1, 0);
+    if (res != sizeof(http_req)-1) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(status_xpos, index, 0, "Failed to send HTTP header.");
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+    res = send(httpSocket, pdh, sizeof(*pdh), 0);
+    if (res != sizeof(*pdh)) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(status_xpos, index, 0, "Failed to send system data.");
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
 
     // Wait for a response.
     // NOTE: Reusing dataBuffer here.
