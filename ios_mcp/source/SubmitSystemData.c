@@ -23,6 +23,7 @@
 #include "mdinfo.h"
 #include "netconf.h"
 #include "netdb.h"
+#include "rsa.h"
 #include "socket.h"
 #include "utils.h"
 
@@ -150,23 +151,6 @@ void option_SubmitSystemData(void)
 
     uint32_t index = 16 + 8 + 2 + 8;
 
-    // parse OTP/SEEPROM for system information
-    // 0x000-0x3FF: OTP
-    // 0x400-0x5FF: SEEPROM
-    // 0x600-0x7FF: post_data_hashed
-#define DATA_BUFFER_SIZE 0x800
-    uint8_t* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, DATA_BUFFER_SIZE, 0x40);
-    if (!dataBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        waitButtonInput();
-        return;
-    }
-    if (read_otp_seeprom(dataBuffer, index) != 0) {
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        return;
-    }
-
     static const char desc[] =
         "This will submit statistical data to the developers of recovery_menu,\n"
         "which will help to determine various statistics about Wii U consoles,\n"
@@ -199,10 +183,32 @@ void option_SubmitSystemData(void)
         return;
     index += (CHAR_SIZE_DRC_Y*(ARRAY_SIZE(submitSystemDataOptions)+1)) + 4;
 
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("Submit System Data");
+    index = 16 + 8 + 2 + 8;
+
+    // parse OTP/SEEPROM for system information
+    // 0x000-0x3FF: OTP
+    // 0x400-0x5FF: SEEPROM
+    // 0x600-0x6FF: RSA-encrypted AES key
+    // 0x700-0x8FF: post_data_hashed
+#define DATA_BUFFER_SIZE 0x900
+    uint8_t* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, DATA_BUFFER_SIZE, 0x40);
+    if (!dataBuffer) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(16, index, 0, "Out of memory!");
+        waitButtonInput();
+        return;
+    }
+    if (read_otp_seeprom(dataBuffer, index) != 0) {
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        return;
+    }
+
     /** Get the data and submit it. **/
     uint8_t* const otp = dataBuffer;
     uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
-    struct post_data_hashed* const pdh = (struct post_data_hashed*)dataBuffer + 0x600;
+    struct post_data_hashed* const pdh = (struct post_data_hashed*)dataBuffer + 0x700;
     struct post_data* const pd = &pdh->data;
 
     // Copy in the POST data.
@@ -294,11 +300,63 @@ void option_SubmitSystemData(void)
         }
     }
 
-    gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("Submit System Data");
+    // Generate an AES-128 encryption key and encrypt it using RSA-2048.
+    uint8_t aes128_key[16];
+    res = IOSC_GenerateRand(aes128_key, sizeof(aes128_key));
+    if (res != 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "IOSC_GenerateRand() failed: %d", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+    uint8_t* const encKey = (uint8_t*)dataBuffer + 0x600;
+    res = rsa2048_encrypt_aes128_key(encKey, RSA2048_BUF_SIZE, aes128_key, sizeof(aes128_key));
+    if (res != 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "rsa2048_encrypt_aes128_key() failed: %d", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+    IOSCSecretKeyHandle aesHandle;
+    res = IOSC_CreateObject(&aesHandle, 0, 0);  // IOSU uses 0,0 for AES
+    if (res != 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "IOSC_CreateObject() failed: %d", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    // values from IOSU for AES
+    // not specifying verifyHandle, decryptHandle, or flag
+    // signbuffer is not used for AES
+    uint8_t iv[16];
+    memset(iv, 0, sizeof(iv));
+    res = IOSC_ImportSecretKey(aesHandle, 0, 0, 0, NULL, 0, iv, sizeof(iv), aes128_key, sizeof(aes128_key));
+    if (res != 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "IOSC_ImportSecretKey() failed: %d", res);
+        IOSC_DeleteObject(aesHandle);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    // Encrypt the POST data using AES-128.
+    res = IOSC_Encrypt(aesHandle, iv, sizeof(iv), (uint8_t*)pdh, sizeof(*pdh), (uint8_t*)pdh, sizeof(*pdh));
+    if (res != 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "IOSC_Encrypt() failed: %d", res);
+        IOSC_DeleteObject(aesHandle);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+    IOSC_DeleteObject(aesHandle);
 
     // Initialize the network.
-    index = 16 + 8 + 2 + 8;
     res = initNetconf(&index);
     if (res != 0) {
         // An error occurred while initializing netconf.
@@ -310,7 +368,7 @@ void option_SubmitSystemData(void)
     int httpSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (httpSocket < 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "socket() failed: %x", httpSocket);
+        gfx_printf(16, index, 0, "socket() failed: %d", httpSocket);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
         return;
@@ -336,7 +394,7 @@ void option_SubmitSystemData(void)
     res = connect(httpSocket, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "connect() failed: %x", res);
+        gfx_printf(16, index, 0, "connect() failed: %d", res);
         closesocket(httpSocket);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
@@ -353,21 +411,25 @@ void option_SubmitSystemData(void)
         "Host: wiiu.gerbilsoft.com\r\n"
         "User-Agent: Wii U Recovery Menu/" VERSION_STRING "\r\n"
         "Content-Type: application/octet-stream\r\n"
-        "Content-Length: 352\r\n\r\n";
+        "Content-Length: 608\r\n\r\n";
 
     // Send the HTTP request.
-    res = send(httpSocket, http_req, sizeof(http_req)-1, 0);
-    if (res != sizeof(http_req)-1) {
+    bool ok = false;
+    do {
+        res = send(httpSocket, http_req, sizeof(http_req)-1, 0);
+        if (res != sizeof(http_req)-1)
+            break;
+        res = send(httpSocket, encKey, RSA2048_BUF_SIZE, 0);
+        if (res != RSA2048_BUF_SIZE)
+            break;
+        res = send(httpSocket, pdh, sizeof(*pdh), 0);
+        if (res != sizeof(*pdh))
+            break;
+        ok = true;
+    } while (0);
+    if (!ok) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_print(status_xpos, index, 0, "Failed to send HTTP header.");
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
-        return;
-    }
-    res = send(httpSocket, pdh, sizeof(*pdh), 0);
-    if (res != sizeof(*pdh)) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(status_xpos, index, 0, "Failed to send system data.");
+        gfx_print(status_xpos, index, 0, "Failed to send HTTP request.");
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
         return;
@@ -376,7 +438,7 @@ void option_SubmitSystemData(void)
     // Wait for a response.
     // NOTE: Reusing dataBuffer here.
     // TODO: Show an error message aside from the HTTP response code?
-    bool ok = false;
+    ok = false;
     res = recv(httpSocket, dataBuffer, DATA_BUFFER_SIZE-1, 0);
     dataBuffer[DATA_BUFFER_SIZE-1] = 0;
     if (res <= 0) {

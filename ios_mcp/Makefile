@@ -41,7 +41,8 @@ INCLUDES	:= source
 # options for code generation
 #---------------------------------------------------------------------------------
 CFLAGS	:= -Wall -Werror=implicit-function-declaration -Werror=int-conversion -std=gnu11 -Os \
-	-flto -fno-tree-loop-distribute-patterns -fno-builtin -DMINILZO_CFG_SKIP_LZO1X_1_COMPRESS \
+	-flto -fno-tree-loop-distribute-patterns -fno-builtin \
+	-DNDEBUG -DMINILZO_CFG_SKIP_LZO1X_1_COMPRESS \
 	$(MACHDEP) $(INCLUDE)
 
 ASFLAGS	:= $(MACHDEP)

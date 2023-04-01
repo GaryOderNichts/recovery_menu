@@ -112,3 +112,18 @@ int IOS_Syscall0x81(int type, uint32_t address, uint32_t value);
 #define IOSC_HASH_FLAGS_UPDATE      0x101
 #define IOSC_HASH_FLAGS_FINALIZE    0x102
 int IOSC_GenerateHash(uint8_t* context, uint32_t contextSize, uint8_t* inputData, uint32_t inputSize, uint32_t flags, uint8_t* hashData, uint32_t outputSize);
+
+typedef int IOSCPublicKeyHandle;
+typedef int IOSCSecretKeyHandle;
+typedef unsigned int IOSCSecretKeySecurity;
+
+typedef unsigned int IOSCObjectType;
+typedef unsigned int IOSCObjectSubType;
+
+int IOSC_CreateObject(int* keyHandle, IOSCObjectType type, IOSCObjectSubType subtype);
+int IOSC_DeleteObject(int keyHandle);
+int IOSC_GenerateRand(uint8_t* randBytes, uint32_t numBytes);
+int IOSC_ImportSecretKey(IOSCSecretKeyHandle importedHandle, IOSCSecretKeyHandle verifyHandle, IOSCSecretKeyHandle decryptHandle, IOSCSecretKeySecurity flag, uint8_t* signbuffer, uint32_t signbufferSize, uint8_t* ivData, uint32_t ivSize, uint8_t* keybuffer, uint32_t keybufferSize);
+int IOSC_ImportPublicKey(uint8_t* publicKeyData, uint32_t dataSize, uint8_t* exponent, uint32_t exponentSize, IOSCPublicKeyHandle publicKeyHandle);
+int IOSC_Decrypt(IOSCSecretKeyHandle decryptHandle, uint8_t* ivData, uint32_t ivSize, uint8_t* inputData, uint32_t inputSize, uint8_t* outputData, uint32_t outputSize);
+int IOSC_Encrypt(IOSCSecretKeyHandle encryptHandle, uint8_t* ivData, uint32_t ivSize, uint8_t* inputData, uint32_t inputSize, uint8_t* outputData, uint32_t outputSize);
