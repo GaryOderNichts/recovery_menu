@@ -171,8 +171,8 @@ void option_SubmitSystemData(void)
         "* Security level (keyset), sataDevice, consoleType, BSP revision\n"
         "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed, ddr3Vendor\n"
         "* MLC manufacturer, revision, name, size, and CID\n"
-        "* SHA-256 hash of OTP (to prevent duplicates)\n"
-        "* MS, CA, NG, and NG key IDs, and device certificate\n"
+        "* Device certificate and SHA-256 hash of OTP (to prevent duplicates)\n"
+        "* MS, CA, NG, and NG key IDs\n"
         "\n"
         "Do you want to submit your console's system data?\n";
     gfx_set_font_color(COLOR_PRIMARY);
