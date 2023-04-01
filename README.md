@@ -73,6 +73,11 @@ in-region titles.
 Displays info about several parts of the system.  
 Including serial number, manufacturing date, console type, regions, memory devices...
 
+### Submit System Data
+Allows submitting system information to an online database to collect various statistics about Wii U consoles.  
+This is entirely optional and personally identifying information will be kept confidential.  
+[The database can be found here!](https://wiiu.gerbilsoft.com/)
+
 ## Building
 ```bash
 # build the docker container

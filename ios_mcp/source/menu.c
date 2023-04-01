@@ -161,7 +161,7 @@ int drawMenu(const char* title, const Menu* menu, size_t count,
     uint8_t cur_flag = 0;
     uint8_t flag = 0;
     while (1) {
-        readSystemEventFlag(&flag);
+        SMC_ReadSystemEventFlag(&flag);
         if (cur_flag != flag) {
             if (flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) {
                 prev_selected = selected;
@@ -212,7 +212,7 @@ void waitButtonInput(void)
     uint8_t flag = 0;
 
     while (1) {
-        readSystemEventFlag(&flag);
+        SMC_ReadSystemEventFlag(&flag);
         if (cur_flag != flag) {
             if ((flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) || (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON)) {
                 return;
@@ -937,29 +937,30 @@ int menuThread(void* arg)
     printf("menuThread running\n");
 
     // set LED to purple-orange blinking
-    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE);
+    SMC_SetNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE);
 
     // stop ppcHeartbeatThread and reset PPC
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
     resetPPC();
 
     // cut power to the disc drive to not eject a disc every eject press
-    setDrivePower(0);
+    SMC_SetODDPower(0);
 
 #ifdef DC_INIT
+    // (re-)init the graphics subsystem
+    GFX_SubsystemInit(0);
+
     /* Note: CONFIGURATION_0 is 720p instead of 480p,
        but doesn't shut down the GPU properly? The
        GamePad just stays connected after calling iOS_Shutdown.
        To be safe, let's use CONFIGURATION_1 for now */
-
-    // init display output
-    initDisplay(DC_CONFIGURATION_1);
+    DISPLAY_DCInit(DC_CONFIGURATION_1);
 
     /* Note about the display configuration struct:
        The returned framebuffer address seems to be AV out only?
        Writing to the hardcoded addresses in gfx.c works for HDMI though */
-    //DisplayController_Config dc_config;
-    //readDCConfig(&dc_config);
+    DC_Config dc_config;
+    DISPLAY_ReadDCConfig(&dc_config);
 #endif
 
     // initialize the font
@@ -982,7 +983,7 @@ int menuThread(void* arg)
     }
 
     // set LED to purple
-    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_BLUE);
+    SMC_SetNotificationLED(NOTIF_LED_RED | NOTIF_LED_BLUE);
 
     int selected = 0;
     while (1) {

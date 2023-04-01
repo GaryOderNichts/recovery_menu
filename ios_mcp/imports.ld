@@ -11,6 +11,7 @@ PROVIDE(strncmp = 0x05055e10);
 PROVIDE(usleep = 0x050564e4);
 
 PROVIDE(bspGetHardwareVersion = 0x0503d6e8);
+PROVIDE(bspInit = 0x0503d35c);
 PROVIDE(bspWrite = 0x0503d460);
 PROVIDE(bspRead = 0x0503d550);
 

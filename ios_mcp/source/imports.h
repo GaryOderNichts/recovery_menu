@@ -68,6 +68,7 @@ typedef enum BSPHardwareVersions {
 
 int bspGetHardwareVersion(uint32_t* version);
 
+int bspInit(const char* entity, uint32_t instance, const char* attribute, uint32_t size, const void* buffer);
 int bspWrite(const char* entity, uint32_t instance, const char* attribute, uint32_t size, const void* buffer);
 int bspRead(const char* entity, uint32_t instance, const char* attribute, uint32_t size, void* buffer);
 
@@ -108,7 +109,6 @@ int IOS_Syscall0x81(int type, uint32_t address, uint32_t value);
 
 // context: 0x70-byte buffer for chaining hash calls together
 #define IOSC_HASH_CONTEXT_SIZE      0x70
-// NOTE: These flags generate an SHA-256 hash, not SHA-1.
 #define IOSC_HASH_FLAGS_SHA1_INIT       0x000
 #define IOSC_HASH_FLAGS_SHA1_UPDATE     0x001
 #define IOSC_HASH_FLAGS_SHA1_FINALIZE   0x002

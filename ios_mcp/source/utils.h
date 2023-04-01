@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <assert.h>
 
 /**
  * Number of elements in an array.
@@ -31,13 +32,14 @@ enum {
     DC_CONFIGURATION_1,
 };
 
-typedef struct DisplayController_Config {
+typedef struct DC_Config {
     uint32_t id;
     uint32_t field_0x4;
     int width;
     int height;
     void* framebuffer;
-} DisplayController_Config;
+} DC_Config;
+static_assert(sizeof(DC_Config) == 0x14);
 
 enum {
     NOTIF_LED_OFF               = 0,
@@ -57,14 +59,16 @@ int EEPROM_Read(uint16_t offset, uint16_t num, uint16_t* buf);
 
 int resetPPC(void);
 
-int readSystemEventFlag(uint8_t* flag);
-
 int copy_file(int fsaFd, const char* src, const char* dst);
 
-int initDisplay(uint32_t configuration);
+int GFX_SubsystemInit(uint8_t unk);
 
-int readDCConfig(DisplayController_Config* config);
+int DISPLAY_DCInit(uint32_t configuration);
 
-int setNotificationLED(uint8_t mask);
+int DISPLAY_ReadDCConfig(DC_Config* config);
 
-int setDrivePower(int power);
+int SMC_ReadSystemEventFlag(uint8_t* flag);
+
+int SMC_SetNotificationLED(uint8_t mask);
+
+int SMC_SetODDPower(int power);

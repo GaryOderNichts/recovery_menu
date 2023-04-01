@@ -17,10 +17,10 @@
 
 #pragma once
 
-#define VERSION_STRING "0.4+"
-
 #include <stddef.h>
 #include <stdint.h>
+
+#define VERSION_STRING "0.5"
 
 // FSA handle
 // Initialized by menuThread().

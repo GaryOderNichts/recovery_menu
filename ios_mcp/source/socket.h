@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define SOL_SOCKET  0xFFFF
+#define SOL_SOCKET  -1
 
 #define PF_UNSPEC   0
 #define PF_INET     2
