@@ -92,6 +92,7 @@ int IOS_ReadOTP(int index, void* buffer, uint32_t size);
 void* IOS_HeapAlloc(uint32_t heap, uint32_t size);
 void* IOS_HeapAllocAligned(uint32_t heap, uint32_t size, uint32_t alignment);
 void IOS_HeapFree(uint32_t heap, void* ptr);
+void* IOS_HeapRealloc(uint32_t heap, void* ptr, uint32_t size);
 
 int IOS_Open(const char* device, int mode);
 int IOS_Close(int fd);

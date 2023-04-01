@@ -46,27 +46,18 @@ static const uint32_t rsa_pubexp = 0x10001;
 
 static void *ios_gmp_alloc(size_t size)
 {
-    return IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, size);
+    return IOS_HeapAlloc(LOCAL_PROCESS_HEAP_ID, size);
 }
 static void *ios_gmp_realloc(void *buf, size_t old_size, size_t new_size)
 {
-    void *newbuf = IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, new_size);
-    if (!newbuf)
-        return NULL;
-
-    // Copy the existing buffer into the new buffer.
-    size_t to_copy = (old_size < new_size ? old_size : new_size);
-    if (to_copy > 0) {
-        memcpy(newbuf, buf, to_copy);
-    }
-    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, buf);
-    return newbuf;
+    ((void)old_size);
+    return IOS_HeapRealloc(LOCAL_PROCESS_HEAP_ID, buf, new_size);
 }
 
 static void ios_gmp_free(void *p, size_t unused_size)
 {
     ((void)unused_size);
-    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, p);
+    IOS_HeapFree(LOCAL_PROCESS_HEAP_ID, p);
 }
 
 /**
