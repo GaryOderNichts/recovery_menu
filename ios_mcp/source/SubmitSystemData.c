@@ -282,21 +282,21 @@ void option_SubmitSystemData(void)
     // Hash the OTP ROM
     // TODO: Check for errors.
     uint8_t hash_ctx[IOSC_HASH_CONTEXT_SIZE];
-    res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), NULL, 0, IOSC_HASH_FLAGS_INIT, NULL, 0);
+    res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), NULL, 0, IOSC_HASH_FLAGS_SHA256_INIT, NULL, 0);
     if (res == 0) {
-        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), otp, 0x400, IOSC_HASH_FLAGS_FINALIZE, pd->otp_sha256, sizeof(pd->otp_sha256));
+        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), otp, 0x400, IOSC_HASH_FLAGS_SHA256_FINALIZE, pd->otp_sha256, sizeof(pd->otp_sha256));
     }
 
     // Hash the post data.
     // TODO: Check for errors.
-    res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), NULL, 0, IOSC_HASH_FLAGS_INIT, NULL, 0);
+    res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), NULL, 0, IOSC_HASH_FLAGS_SHA256_INIT, NULL, 0);
     if (res == 0) {
-        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), (uint8_t*)pd, sizeof(*pd), IOSC_HASH_FLAGS_UPDATE, NULL, 0);
+        res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), (uint8_t*)pd, sizeof(*pd), IOSC_HASH_FLAGS_SHA256_UPDATE, NULL, 0);
         if (res == 0) {
             // Add some more stuff to the hash.
             // NOTE: Reusing the OTP buffer here.
             memcpy(otp, desc, 64);
-            res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), otp, 64, IOSC_HASH_FLAGS_FINALIZE, pdh->post_sha256, sizeof(pdh->post_sha256));
+            res = IOSC_GenerateHash(hash_ctx, sizeof(hash_ctx), otp, 64, IOSC_HASH_FLAGS_SHA256_FINALIZE, pdh->post_sha256, sizeof(pdh->post_sha256));
         }
     }
 

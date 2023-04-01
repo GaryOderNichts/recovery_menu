@@ -108,9 +108,12 @@ int IOS_Syscall0x81(int type, uint32_t address, uint32_t value);
 // context: 0x70-byte buffer for chaining hash calls together
 #define IOSC_HASH_CONTEXT_SIZE      0x70
 // NOTE: These flags generate an SHA-256 hash, not SHA-1.
-#define IOSC_HASH_FLAGS_INIT        0x100
-#define IOSC_HASH_FLAGS_UPDATE      0x101
-#define IOSC_HASH_FLAGS_FINALIZE    0x102
+#define IOSC_HASH_FLAGS_SHA1_INIT       0x000
+#define IOSC_HASH_FLAGS_SHA1_UPDATE     0x001
+#define IOSC_HASH_FLAGS_SHA1_FINALIZE   0x002
+#define IOSC_HASH_FLAGS_SHA256_INIT     0x100
+#define IOSC_HASH_FLAGS_SHA256_UPDATE   0x101
+#define IOSC_HASH_FLAGS_SHA256_FINALIZE 0x102
 int IOSC_GenerateHash(uint8_t* context, uint32_t contextSize, uint8_t* inputData, uint32_t inputSize, uint32_t flags, uint8_t* hashData, uint32_t outputSize);
 
 typedef int IOSCPublicKeyHandle;
