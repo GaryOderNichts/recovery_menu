@@ -73,6 +73,9 @@ int _main(void* arg)
     // patch MCP_SetSysProdSettings debug mode check
     *(volatile uint32_t*) (0x05024648 - 0x05000000 + 0x081c0000) = 0x20002000; // mov r0, #0; mov r0, #0
 
+    // nop out odm log to not spam logs when stopping drive
+    *(volatile uint32_t*) 0x1073880c = 0xe12fff1e; // bx lr
+
     restore_mmu(control_register);
 
     // invalidate all cache
