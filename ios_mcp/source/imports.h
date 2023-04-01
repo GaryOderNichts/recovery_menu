@@ -130,3 +130,21 @@ int IOSC_ImportSecretKey(IOSCSecretKeyHandle importedHandle, IOSCSecretKeyHandle
 int IOSC_ImportPublicKey(uint8_t* publicKeyData, uint32_t dataSize, uint8_t* exponent, uint32_t exponentSize, IOSCPublicKeyHandle publicKeyHandle);
 int IOSC_Decrypt(IOSCSecretKeyHandle decryptHandle, uint8_t* ivData, uint32_t ivSize, uint8_t* inputData, uint32_t inputSize, uint8_t* outputData, uint32_t outputSize);
 int IOSC_Encrypt(IOSCSecretKeyHandle encryptHandle, uint8_t* ivData, uint32_t ivSize, uint8_t* inputData, uint32_t inputSize, uint8_t* outputData, uint32_t outputSize);
+
+#define WUP_CERT_SIGTYPE_ECC_SHA1   0x00010002  /* ECC with SHA-1 */
+#define WUP_CERT_SIGTYPE_ECC_SHA256 0x00010005  /* ECC with SHA-256 */
+#define WUP_NG_ISSUER_PPKI "Root-CA00000003-MS00000012"
+#define WUP_NG_ISSUER_DPKI "Root-CA00000002-MS00000003"
+typedef struct IOSCEccSignedCert {
+    uint32_t signature_type;    // [0x000] 0x00010002 or 0x00010005
+    uint8_t signature[0x3C];    // [0x004] ECC signature
+    uint8_t reserved1[0x40];    // [0x040] All zeroes
+    char issuer[0x40];          // [0x080] Issuer
+    uint32_t key_type;          // [0x0C0] Key type (2)
+    char console_id[0x40];      // [0x0C4] Console ID ("NGxxxxxxxx")
+    uint32_t ng_id;             // [0x104] NG ID
+    uint8_t pub_key[0x3C];      // [0x108] ECC public key
+    uint8_t reserved2[0x3C];    // [0x10C] All zeroes
+} IOSCEccSignedCert;
+
+int IOSC_GetDeviceCertificate(IOSCEccSignedCert* certificate, uint32_t certSize);

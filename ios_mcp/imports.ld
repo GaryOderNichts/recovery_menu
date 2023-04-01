@@ -53,10 +53,11 @@ PROVIDE(currentColdbootOS = 0x050b8174);
 PROVIDE(currentColdbootTitle = 0x050b817c);
 
 PROVIDE(IOSC_CreateObject = 0x050538b8);
+PROVIDE(IOSC_Decrypt = 0x05054468);
 PROVIDE(IOSC_DeleteObject = 0x05053820);
+PROVIDE(IOSC_Encrypt = 0x05054808);
 PROVIDE(IOSC_GenerateHash = 0x05053a6c);
 PROVIDE(IOSC_GenerateRand = 0x05052228);
+PROVIDE(IOSC_GetDeviceCertificate = 0x0505229c);
 PROVIDE(IOSC_ImportSecretKey = 0x05053504);
 PROVIDE(IOSC_ImportPublicKey = 0x050532c8);
-PROVIDE(IOSC_Decrypt = 0x05054468);
-PROVIDE(IOSC_Encrypt = 0x05054808);

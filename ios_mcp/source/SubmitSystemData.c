@@ -36,41 +36,48 @@
 
 // POST data
 struct post_data {
-    char system_model[16];  // [0x000] seeprom[0xB8]
-    char system_serial[16]; // [0x010] seeprom[0xAC] + seeprom[0xB0] - need to mask the last 3 digits
-    uint8_t mfg_date[6];    // [0x020] seeprom[0xC4]
-    uint8_t productArea;    // [0x026]
-    uint8_t gameRegion;     // [0x027]
-    uint32_t sec_level;     // [0x028] otp[0x080]
-    uint16_t boardType;     // [0x02C] seeprom[0x21]
-    uint16_t boardRevision; // [0x02E] seeprom[0x22]
-    uint16_t bootSource;    // [0x030] seeprom[0x23]
-    uint16_t ddr3Size;      // [0x032] seeprom[0x24]
-    uint16_t ddr3Speed;     // [0x034] seeprom[0x25]
-    uint16_t sataDevice;    // [0x036] seeprom[0x2C]
-    uint16_t consoleType;   // [0x038] seeprom[0x2D]
-    uint16_t reserved1;     // [0x03A]
-    uint32_t bsp_rev;       // [0x03C] bspGetHardwareVersion();
-    uint16_t ddr3Vendor;    // [0x040] seeprom[0x29]
-    uint8_t reserved2[62];  // [0x042]
+    char system_model[16];      // [0x000] seeprom[0xB8]
+    char system_serial[16];     // [0x010] seeprom[0xAC] + seeprom[0xB0] - need to mask the last 3 digits
+    uint8_t mfg_date[6];        // [0x020] seeprom[0xC4]
+    uint8_t productArea;        // [0x026]
+    uint8_t gameRegion;         // [0x027]
+    uint32_t sec_level;         // [0x028] otp[0x080]
+    uint16_t boardType;         // [0x02C] seeprom[0x21]
+    uint16_t boardRevision;     // [0x02E] seeprom[0x22]
+    uint16_t bootSource;        // [0x030] seeprom[0x23]
+    uint16_t ddr3Size;          // [0x032] seeprom[0x24]
+    uint16_t ddr3Speed;         // [0x034] seeprom[0x25]
+    uint16_t ddr3Vendor;        // [0x036] seeprom[0x29]
+    uint16_t sataDevice;        // [0x038] seeprom[0x2C]
+    uint16_t consoleType;       // [0x03A] seeprom[0x2D]
+    uint32_t bsp_rev;           // [0x03C] bspGetHardwareVersion();
+    uint32_t wiiu_root_ms_id;   // [0x040] otp[0x280]
+    uint32_t wiiu_root_ca_id;   // [0x044] otp[0x284]
+    uint32_t wiiu_ng_id;        // [0x048] otp[0x21C]
+    uint32_t wiiu_ng_key_id;    // [0x04C] otp[0x288]
+    uint8_t reserved2[48];      // [0x050]
 
     // [0x080]
     struct {
-        uint32_t cid[4];    // [0x080] CID
-        uint32_t mid_prv;   // [0x090] Manufacturer and product revision
-        uint32_t blockSize; // [0x094] Block size
-        uint64_t numBlocks; // [0x098] Number of blocks
-        char name1[128];    // [0x0A0] Product name
+        uint32_t cid[4];        // [0x080] CID
+        uint32_t mid_prv;       // [0x090] Manufacturer and product revision
+        uint32_t blockSize;     // [0x094] Block size
+        uint64_t numBlocks;     // [0x098] Number of blocks
     } mlc;
 
-    // [0x120]
-    uint8_t otp_sha256[32]; // [0x120] OTP SHA-256 hash (to prevent duplicates)
-};  // size == 0x140 (320)
+    // [0x0A0]
+    uint8_t otp_sha256[32];     // [0x0A0] OTP SHA-256 hash (to prevent duplicates)
+
+    // [0x0C0]
+    IOSCEccSignedCert device_cert;  // [0x0C0] Device client certificate
+};  // size == 0x240 (576)
+static_assert(sizeof(struct post_data) == 0x240, "struct post_data size is WRONG");
 
 struct post_data_hashed {
     struct post_data data;
-    uint8_t post_sha256[32];    // [0x140] SHA-256 hash of post_data, with adjustments
-};  // size == 0x160 (352)
+    uint8_t post_sha256[32];    // [0x240] SHA-256 hash of post_data, with adjustments
+};  // size == 0x260 (608)
+static_assert(sizeof(struct post_data_hashed) == 0x260, "struct post_data_hashed size is WRONG");
 
 /**
  * Get data from the received HTTP response header.
@@ -158,14 +165,14 @@ void option_SubmitSystemData(void)
         "but personally identifying information will be kept confidential.\n"
         "\n"
         "Information that will be submitted:\n"
-        "* System model\n"
-        "* System serial number (excluding the last 3 digits)\n"
+        "* System model and serial number (excluding the last 3 digits)\n"
         "* Manufacturing date\n"
         "* Region information\n"
         "* Security level (keyset), sataDevice, consoleType, BSP revision\n"
         "* boardType, boardRevision, bootSource, ddr3Size, ddr3Speed, ddr3Vendor\n"
         "* MLC manufacturer, revision, name, size, and CID\n"
         "* SHA-256 hash of OTP (to prevent duplicates)\n"
+        "* MS, CA, NG, and NG key IDs, and device certificate\n"
         "\n"
         "Do you want to submit your console's system data?\n";
     gfx_set_font_color(COLOR_PRIMARY);
@@ -191,8 +198,8 @@ void option_SubmitSystemData(void)
     // 0x000-0x3FF: OTP
     // 0x400-0x5FF: SEEPROM
     // 0x600-0x6FF: RSA-encrypted AES key
-    // 0x700-0x8FF: post_data_hashed
-#define DATA_BUFFER_SIZE 0x900
+    // 0x700-0x9FF: post_data_hashed
+#define DATA_BUFFER_SIZE 0xA00
     uint8_t* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, DATA_BUFFER_SIZE, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
@@ -210,9 +217,27 @@ void option_SubmitSystemData(void)
     uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
     struct post_data_hashed* const pdh = (struct post_data_hashed*)dataBuffer + 0x700;
     struct post_data* const pd = &pdh->data;
+    memset(pd, 0, sizeof(*pd)); // zero out post_data initially
 
-    // Copy in the POST data.
-    memset(pd, 0, sizeof(*pd));
+    // Device certificate
+    int res = IOSC_GetDeviceCertificate(&pd->device_cert, sizeof(pd->device_cert));
+    if (res != 0) {
+        gfx_printf(16, index, 0, "Failed to get device certificate: %d", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    // BSP revision
+    res = bspGetHardwareVersion(&pd->bsp_rev);
+    if (res != 0) {
+        gfx_printf(16, index, 0, "Failed to get BSP revision: %d", res);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
+
+    // Copy in the rest of the POST data.
     memcpy(pd->system_model, &seeprom[0xB8], sizeof(pd->system_model));
     memcpy(pd->mfg_date, &seeprom[0xC4], sizeof(pd->mfg_date));
     memcpy(&pd->sec_level, &otp[0x080], sizeof(pd->sec_level));
@@ -224,12 +249,10 @@ void option_SubmitSystemData(void)
     pd->ddr3Vendor = seeprom[0x29];
     pd->sataDevice = seeprom[0x2C];
     pd->consoleType = seeprom[0x2D];
-
-    // BSP revision
-    int res = bspGetHardwareVersion(&pd->bsp_rev);
-    if (res != 0) {
-        pd->bsp_rev = 0;
-    }
+    memcpy(&pd->wiiu_root_ms_id, &otp[0x280], sizeof(pd->wiiu_root_ms_id));
+    memcpy(&pd->wiiu_root_ca_id, &otp[0x284], sizeof(pd->wiiu_root_ca_id));
+    memcpy(&pd->wiiu_ng_id, &otp[0x21C], sizeof(pd->wiiu_ng_id));
+    memcpy(&pd->wiiu_ng_key_id, &otp[0x288], sizeof(pd->wiiu_ng_key_id));
 
     // System serial number
     // NOTE: Assuming code+serial doesn't exceed 15 chars (plus NULL).
@@ -259,6 +282,7 @@ void option_SubmitSystemData(void)
     }
 
     // MLC information
+    bool ok = false;
     MDReadInfo();	// TODO: Check for errors?
     for (unsigned int i = 0; i < 2; i++) {
         // We want the first MLC device.
@@ -268,16 +292,23 @@ void option_SubmitSystemData(void)
         }
 
         res = MDGetCID(drv->deviceId, pd->mlc.cid);
-        if (res != 0) {
-            // Error obtaining the CID. Set it to all zeroes.
-            memset(pd->mlc.cid, 0, sizeof(pd->mlc.cid));
-        }
+        if (res != 0)
+            continue;
+
         pd->mlc.mid_prv = drv->params.mid_prv;
         pd->mlc.numBlocks = drv->params.numBlocks;
         pd->mlc.blockSize = drv->params.blockSize;
-        memcpy(pd->mlc.name1, drv->params.name1, sizeof(pd->mlc.name1));
+        // NOTE: Not copying pd->mlc.name1 because the eMMC device name
+        // is fully contained within the MLC CID.
+        ok = true;
         break;
     }    
+    if (!ok) {
+        gfx_print(16, index, 0, "Failed to get MLC CID.");
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        waitButtonInput();
+        return;
+    }
 
     // Hash the OTP ROM
     // TODO: Check for errors.
@@ -411,10 +442,10 @@ void option_SubmitSystemData(void)
         "Host: wiiu.gerbilsoft.com\r\n"
         "User-Agent: Wii U Recovery Menu/" VERSION_STRING "\r\n"
         "Content-Type: application/octet-stream\r\n"
-        "Content-Length: 608\r\n\r\n";
+        "Content-Length: 864\r\n\r\n";
 
     // Send the HTTP request.
-    bool ok = false;
+    ok = false;
     do {
         res = send(httpSocket, http_req, sizeof(http_req)-1, 0);
         if (res != sizeof(http_req)-1)
