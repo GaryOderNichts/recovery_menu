@@ -16,47 +16,39 @@
  */
 
 #include "menu.h"
+
 #include "imports.h"
 #include "gfx.h"
 #include "utils.h"
 #include "fsa.h"
 #include "socket.h"
 #include "netconf.h"
-#include "wupserver.h"
 #include "mcp_install.h"
-#include "ccr.h"
 #include "sci.h"
 #include "mcp_misc.h"
-#include "mdinfo.h"
 
 #include <string.h>
 #include <unistd.h>
 
+#include "StartWupserver.h"
+#include "PairDRC.h"
+#include "DebugSystemRegion.h"
+#include "SystemInformation.h"
+#include "SubmitSystemData.h"
+
 static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
 static void option_DumpOtpAndSeeprom(void);
-static void option_StartWupserver(void);
 static void option_LoadNetConf(void);
-static void option_pairDRC(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
-static void option_DebugSystemRegion(void);
-static void option_SystemInformation(void);
 static void option_Shutdown(void);
 
 extern int ppcHeartBeatThreadId;
 extern uint64_t currentColdbootOS;
 extern uint64_t currentColdbootTitle;
 
-static int fsaHandle = -1;
-
-typedef struct Menu {
-    const char* name;
-    union {
-        void (*callback)(void);
-        uint64_t tid;
-    };
-} Menu;
+int fsaHandle = -1;
 
 static const Menu mainMenuOptions[] = {
     {"Set Coldboot Title",          {.callback = option_SetColdbootTitle}},
@@ -64,15 +56,20 @@ static const Menu mainMenuOptions[] = {
     {"Dump OTP + SEEPROM",          {.callback = option_DumpOtpAndSeeprom}},
     {"Start wupserver",             {.callback = option_StartWupserver}},
     {"Load Network Configuration",  {.callback = option_LoadNetConf}},
-    {"Pair Gamepad",                {.callback = option_pairDRC}},
+    {"Pair Gamepad",                {.callback = option_PairDRC}},
     {"Install WUP",                 {.callback = option_InstallWUP}},
     {"Edit Parental Controls",      {.callback = option_EditParental}},
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
     {"System Information",          {.callback = option_SystemInformation}},
+    {"Submit System Data",          {.callback = option_SubmitSystemData}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
 
-static void drawTopBar(const char* title)
+/**
+ * Draw the top bar.
+ * @param title Title
+ */
+void drawTopBar(const char* title)
 {
     // draw top bar
     gfx_set_font_color(COLOR_PRIMARY);
@@ -89,11 +86,6 @@ static void drawBars(const char* title)
     gfx_print(16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, 0, "EJECT: Navigate");
     gfx_print(SCREEN_WIDTH - 16, SCREEN_HEIGHT - CHAR_SIZE_DRC_Y - 4, GfxPrintFlag_AlignRight, "POWER: Choose");
 }
-
-typedef enum {
-    MenuFlag_ShowTID        = (1U << 0),
-    MenuFlag_NoClearScreen  = (1U << 1),
-} MenuFlags;
 
 /**
  * Draw a single menu item. Called by drawMenu().
@@ -136,9 +128,9 @@ static void drawMenuItem(const Menu* menuItem, int selected, uint32_t flags, uin
  * @param flags
  * @param x
  * @param y
- * @return Selected menu entry index.
+ * @return Selected menu entry index
  */
-static int drawMenu(const char* title, const Menu* menu, size_t count,
+int drawMenu(const char* title, const Menu* menu, size_t count,
         int selected, uint32_t flags, uint32_t x, uint32_t y)
 {
     int redraw = 1;
@@ -154,6 +146,16 @@ static int drawMenu(const char* title, const Menu* menu, size_t count,
     for (int i = 0; i < count; i++) {
         drawMenuItem(&menu[i], selected == i, flags, x, index);
         index += CHAR_SIZE_DRC_Y + 4;
+    }
+
+    if (flags & MenuFlag_ShowGitHubLink) {
+        static const int ypos = SCREEN_HEIGHT - (CHAR_SIZE_DRC_Y * 3);
+        gfx_set_font_color(COLOR_PRIMARY);
+        static const char link_prefix[] = "Check out the GitHub repository at:";
+        gfx_print(16, ypos, 0, link_prefix);
+        static const int xpos = 16 + CHAR_SIZE_DRC_X * sizeof(link_prefix);
+        gfx_set_font_color(COLOR_LINK);
+        gfx_print(xpos, ypos, GfxPrintFlag_Underline, "https://github.com/GaryOderNichts/recovery_menu");
     }
 
     uint8_t cur_flag = 0;
@@ -193,7 +195,10 @@ static int drawMenu(const char* title, const Menu* menu, size_t count,
     }
 }
 
-static void waitButtonInput(void)
+/**
+ * Wait for the user to press a button.
+ */
+void waitButtonInput(void)
 {
     gfx_set_font_color(COLOR_PRIMARY);
     gfx_draw_rect_filled(8, SCREEN_HEIGHT - (16 + 8 + 2), SCREEN_WIDTH - 8 * 2, 2, COLOR_SECONDARY);
@@ -456,24 +461,25 @@ static void option_DumpOtpAndSeeprom(void)
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 }
 
-static void option_StartWupserver(void)
+/**
+ * Initialize the network configuration.
+ * @param index [in/out] Starting (and ending) Y position.
+ * @return 0 on success; non-zero on error.
+ */
+int initNetconf(uint32_t* index)
 {
-    gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("Running wupserver...");
-
-    uint32_t index = 16 + 8 + 2 + 8;
-    gfx_print(16, index, 0, "Initializing netconf...");
-    index += CHAR_SIZE_DRC_Y + 4;
+    gfx_print(16, *index, 0, "Initializing netconf...");
+    *index += CHAR_SIZE_DRC_Y;
 
     int res = netconf_init();
     if (res <= 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
+        gfx_printf(16, *index, 0, "Failed to initialize netconf: %x", res);
         waitButtonInput();
-        return;
+        return res;
     }
 
-    gfx_printf(16, index, 0, "Waiting for network connection... %ds", 5);
+    gfx_printf(16, *index, 0, "Waiting for network connection... %ds", 5);
 
     NetConfInterfaceTypeEnum interface = 0xff;
     for (int i = 0; i < 5; i++) {
@@ -488,55 +494,43 @@ static void option_StartWupserver(void)
         }
 
         usleep(1000 * 1000);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
+        gfx_printf(16, *index, GfxPrintFlag_ClearBG, "Waiting for network connection... %ds", 4 - i);
     }
 
-    index += CHAR_SIZE_DRC_Y + 4;
+    *index += CHAR_SIZE_DRC_Y;
 
     if (interface == 0xff) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "No network connection!");
+        gfx_print(16, *index, 0, "No network connection!");
         waitButtonInput();
-        return;
+        return 1;
     }
 
-    gfx_printf(16, index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
-    index += CHAR_SIZE_DRC_Y + 4;
+    gfx_printf(16, *index, 0, "Connected using %s", (interface == NET_CFG_INTERFACE_TYPE_WIFI) ? "WIFI" : "ETHERNET");
+    *index += CHAR_SIZE_DRC_Y;
 
     uint8_t ip_address[4];
     res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get IP address: %x", res);
+        gfx_printf(16, *index, 0, "Failed to get IP address: %x", res);
         waitButtonInput();
-        return;
+        return res;
     }
 
-    gfx_printf(16, index, 0, "IP address: %u.%u.%u.%u",
+    gfx_printf(16, *index, 0, "IP address: %u.%u.%u.%u",
         ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-    index += CHAR_SIZE_DRC_Y + 4;
+    *index += CHAR_SIZE_DRC_Y;
 
     res = socketInit();
     if (res <= 0) {
         gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize socketlib: %x", res);
+        gfx_printf(16, *index, 0, "Failed to initialize socketlib: %x", res);
         waitButtonInput();
-        return;
+        return res;
     }
 
-    wupserver_init();
-
-    gfx_set_font_color(COLOR_SUCCESS);
-    gfx_print(16, index, 0, "Wupserver running. Press EJECT or POWER to stop.");
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    waitButtonInput();
-
-    gfx_set_font_color(COLOR_PRIMARY);
-    gfx_print(16, index, 0, "Stopping wupserver...");
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    wupserver_deinit();
+    return 0;
 }
 
 static void network_parse_config_value(uint32_t* console_idx, NetConfCfg* cfg, const char* key, const char* value, uint32_t value_len)
@@ -717,120 +711,6 @@ static void option_LoadNetConf(void)
     FSA_CloseFile(fsaHandle, cfgHandle);
 }
 
-static void option_pairDRC(void)
-{
-    gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("Pairing Gamepad...");
-
-    uint32_t index = 16 + 8 + 2 + 8;
-
-    int res = CCRCDCSetup();
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "CCRCDCSetup() failed: %x", res);
-
-        waitButtonInput();
-        return;
-    }
-
-    gfx_print(16, index, 0, "Get pincode...");
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    uint8_t pincode[4];
-    res = CCRSysGetPincode(pincode);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get pincode: %x", res);
-
-        waitButtonInput();
-        return;
-    }
-
-    static const char symbol_names[][8] = {
-        "spade",
-        "heart",
-        "diamond",
-        "clubs",
-    };
-
-    gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Pincode: %x%x%x%x (%s %s %s %s)",
-        pincode[0], pincode[1], pincode[2], pincode[3],
-        symbol_names[pincode[0]], symbol_names[pincode[1]], symbol_names[pincode[2]], symbol_names[pincode[3]]);
-    gfx_set_font_color(COLOR_PRIMARY);
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    int timeout = 30; // ~30 seconds
-
-    // display a "this gamepad has already been paired" message, if a gamepad is alrady connected
-    res = CCRCDCDevicePing(CCR_DEST_DRC0);
-    if (res == 0) {
-        gfx_print(16, index, 0, "Gamepad already connected, displaying message...");
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        uint16_t args[2] = { 0, timeout + 5 };
-        CCRCDCSysDrcDisplayMessage(CCR_DEST_DRC0, args);
-    }
-
-    usleep(1000 * 100);
-
-    uint8_t mute = 0xff;
-    CCRCDCPerSetLcdMute(CCR_DEST_DRC0, &mute);
-
-    gfx_print(16, index, 0, "Starting pairing...");
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    res = CCRSysStartPairing(CCR_DEST_DRC0, timeout, pincode);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to start pairing: %x", res);
-
-        waitButtonInput();
-        return;
-    }
-
-    uint32_t status;
-    while (timeout--) {
-        res = CCRCDCWpsStatus(&status);
-        if (res < 0) {
-            gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to get status: %x", res);
-
-            CCRCDCWpsStop();
-
-            waitButtonInput();
-            return;
-        }
-
-        if (status == 0) {
-            // paired
-            break;
-        } else if (status == 2) {
-            // pairing
-        } else if (status == 1) {
-            // searching
-        } else {
-            // error
-            break;
-        }
-
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Waiting for Gamepad... (%lx) (Timeout: %d)", status, timeout);
-        usleep(1000 * 1000);
-    }
-
-    if (status != 0 || timeout <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to pair GamePad: %lx", status);
-
-        CCRCDCWpsStop();
-    } else {
-        gfx_set_font_color(COLOR_SUCCESS);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Paired GamePad");
-    }
-
-    waitButtonInput();
-}
-
 static void option_InstallWUP(void)
 {
     gfx_clear(COLOR_BACKGROUND);
@@ -970,18 +850,13 @@ static void option_EditParental(void)
     }
 }
 
-static const char region_tbl[7][4] = {
-    "JPN", "USA", "EUR", "AUS",
-    "CHN", "KOR", "TWN",
-};
-
 /**
  * Get region code information.
  * @param productArea_id Product area ID: 0-6
  * @param gameRegion Bitfield of game regions
- * @return 0 on success; negative on error
+ * @return 0 on success; negative on error.
  */
-static int getRegionInfo(int* productArea_id, int* gameRegion)
+int getRegionInfo(int* productArea_id, int* gameRegion)
 {
     MCPSysProdSettings sysProdSettings;
 
@@ -1007,421 +882,38 @@ static int getRegionInfo(int* productArea_id, int* gameRegion)
     return 0;
 }
 
-static void option_DebugSystemRegion(void)
+/**
+ * Read OTP and SEEPROM.
+ *
+ * If an error occurs, a message will be displayed and the
+ * user will be prompted to press a button.
+ *
+ * @param buf Buffer (must be 0x600 bytes)
+ * @param index Row index for error messages
+ * @return 0 on success; non-zero on error.
+ */
+int read_otp_seeprom(void *buf, int index)
 {
-    gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("Debug System Region");
-
-    uint32_t index = 16 + 8 + 2 + 8;
-
-    // Get the system region code, then check if a matching
-    // Wii U Menu is installed.
-    int productArea_id, gameRegion;
-    int res = getRegionInfo(&productArea_id, &gameRegion);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get the system region code: %x", res);
-        waitButtonInput();
-        return;
-    }
-
-    // productArea
-    gfx_set_font_color(COLOR_PRIMARY);
-    if (productArea_id >= 0 && productArea_id < ARRAY_SIZE(region_tbl)) {
-        gfx_printf(16, index, 0, "System region code:   %s", region_tbl[productArea_id]);
-    } else {
-        gfx_printf(16, index, 0, "System region code:   %d", productArea_id);
-    }
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    // gameRegion
-    gfx_printf(16, index, 0, "Game region code:     %s %s %s %s %s %s",
-        (gameRegion & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
-        (gameRegion & MCP_REGION_USA)    ? region_tbl[1] : "---",
-        (gameRegion & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
-        (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
-        (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
-        (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
-    index += CHAR_SIZE_DRC_Y + 4;
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    // Wii U Menu path ('x' is at path[43])
-    char path[] = "/vol/storage_mlc01/sys/title/00050010/10040x00/code/app.xml";
-
-    // Check if Wii U Menu for this region exists.
-    int menu_matches_region = 0;
-    int menu_is_in_gameRegion = 0;
-    int menu_productArea_id = -1;
-    int menu_count = 0;
-    int fileHandle;
-
-    path[43] = productArea_id + '0';
-    res = FSA_OpenFile(fsaHandle, path, "r", &fileHandle);
-    if (res >= 0) {
-        menu_matches_region = 1;
-        menu_productArea_id = productArea_id;
-        menu_count = 1; // TODO: Check for others anyway?
-        FSA_CloseFile(fsaHandle, fileHandle);
-    }
-
-    if (!menu_matches_region) {
-        // Check if another Wii U Menu is installed.
-        for (int i = 0; i < ARRAY_SIZE(region_tbl); i++) {
-            if (i == productArea_id)
-                continue;
-
-            path[43] = '0' + i;
-            res = FSA_OpenFile(fsaHandle, path, "r", &fileHandle);
-            if (res >= 0) {
-                menu_count++;
-                menu_productArea_id = i;
-                FSA_CloseFile(fsaHandle, fileHandle);
-            }
-        }
-    }
-
-    // Is the menu region in gameRegion?
-    menu_is_in_gameRegion = (gameRegion & (1U << menu_productArea_id));
-
-    gfx_print(16, index, 0, "Installed Wii U Menu: ");
-    const char* menu_region_str;
-    if (menu_count == 0 || menu_productArea_id < 0) {
-        menu_region_str = "NONE";
-        gfx_set_font_color(COLOR_ERROR);
-    } else if (menu_count > 1) {
-        menu_region_str = "MANY";
-        gfx_set_font_color(COLOR_ERROR);
-    } else {
-        menu_region_str = region_tbl[menu_productArea_id];
-        gfx_set_font_color(COLOR_SUCCESS);
-    }
-
-    gfx_print(16+(22*CHAR_SIZE_DRC_X), index, 0, menu_region_str);
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    if (menu_matches_region && menu_is_in_gameRegion) {
-        gfx_set_font_color(COLOR_SUCCESS);
-        gfx_print(16, index, 0, "The system region appears to be set correctly.");
-        waitButtonInput();
-        return;
-    }
-
-    // Show the errors.
-    gfx_set_font_color(COLOR_ERROR);
-    if (menu_count == 0 || menu_productArea_id < 0) {
-        gfx_print(16, index, 0, "Could not find a Wii U Menu title installed on this system.");
-        waitButtonInput();
-        return;
-    } else if (menu_count > 1) {
-        gfx_print(16, index, 0, "Multiple Wii U Menus were found. Someone dun goofed...");
-        waitButtonInput();
-        return;
-    }
-
-    if (!menu_matches_region) {
-        gfx_printf(16, index, 0, "The %s region does not match the installed Wii U Menu.", "system");
-        index += CHAR_SIZE_DRC_Y + 4;
-    }
-    if (!menu_is_in_gameRegion) {
-        gfx_printf(16, index, 0, "The %s region does not match the installed Wii U Menu.", "game");
-        index += CHAR_SIZE_DRC_Y + 4;
-    }
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    gfx_set_font_color(COLOR_PRIMARY);
-    gfx_printf(16, index, 0, "Repair the system by setting the region code to %s?", menu_region_str);
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    static const Menu fixRegionBrickOptions[] = {
-        {"Cancel", {0} },
-        {"Fix Region", {0} },
-    };
-    int selected = drawMenu("Debug System Region",
-        fixRegionBrickOptions, ARRAY_SIZE(fixRegionBrickOptions), 0,
-        MenuFlag_NoClearScreen, 16, index);
-    if (selected == 0)
-        return;
-    index += (CHAR_SIZE_DRC_Y*(ARRAY_SIZE(fixRegionBrickOptions)+1)) + 4;
-
-    // Attempt to set the region code.
-    int mcpHandle = IOS_Open("/dev/mcp", 0);
-    if (mcpHandle < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "IOS_Open(\"/dev/mcp\") failed: %x", mcpHandle);
-        waitButtonInput();
-        return;
-    }
-
-    MCPSysProdSettings sysProdSettings;
-    res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
-    if (res < 0) {
-        IOS_Close(mcpHandle);
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_GetSysProdSettings() failed: %x", res);
-        waitButtonInput();
-        return;
-    }
-
-    // Set both productArea and gameRegion to the Wii U Menu's region value.
-    // NOTE: productArea_id is a bit index, so it needs to be shifted into place.
-    sysProdSettings.product_area = (1U << menu_productArea_id);
-    sysProdSettings.game_region = (1U << menu_productArea_id);
-    res = MCP_SetSysProdSettings(mcpHandle, &sysProdSettings);
-    IOS_Close(mcpHandle);
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_SetSysProdSettings() failed: %x", res);
-    } else {
-        gfx_set_font_color(COLOR_SUCCESS);
-        gfx_printf(16, index, 0, "System region set to %s successfully.", menu_region_str);
-        waitButtonInput();
-        return;
-    }
-
-    waitButtonInput();
-}
-
-static void option_SystemInformation(void)
-{
-    gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("System Information");
-
-    uint32_t index = 16 + 8 + 2 + 8;
-
-    // parse OTP/SEEPROM for system information
-    // 0x000-0x3FF: OTP
-    // 0x400-0x5FF: SEEPROM
-    // 0x600-0x7FF: misc for version.bin
-    void *dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x800, 0x40);
-    if (!dataBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        waitButtonInput();
-        return;
-    }
-    uint8_t* const otp = (uint8_t*)dataBuffer;
-    uint16_t* const seeprom = (uint16_t*)dataBuffer + 0x200;
+    uint8_t* const otp = (uint8_t*)buf;
+    uint16_t* const seeprom = (uint16_t*)buf + 0x200;
 
     int res = IOS_ReadOTP(0, otp, 0x400);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
-        return;
+        return res;
     }
 
     res = EEPROM_Read(0, 0x100, seeprom);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
-        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         waitButtonInput();
-        return;
+        return res;
     }
 
-    // NOTE: gfx_printf() does not support precision specifiers.
-    // We'll have to ensure the strings are terminated manually.
-    char buf1[17];
-    char buf2[17];
-
-    memcpy(buf1, &seeprom[0xB8], 16);
-    buf1[16] = '\0';
-    gfx_printf(16, index, 0, "Model:    %s", buf1);
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    memcpy(buf1, &seeprom[0xAC], 8);
-    buf1[8] = '\0';
-    memcpy(buf2, &seeprom[0xB0], 16);
-    buf2[16] = '\0';
-    gfx_printf(16, index, 0, "Serial:   %s%s", buf1, buf2);
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    if (seeprom[0xC4] != 0) {
-        gfx_printf(16, index, 0, "Mfg Date: %04x/%02x/%02x %02x:%02x",
-            seeprom[0xC4], seeprom[0xC5] >> 8, seeprom[0xC5] & 0xFF,
-            seeprom[0xC6] >> 8, seeprom[0xC6] & 0xFF);
-        index += CHAR_SIZE_DRC_Y + 4;
-    }
-
-    static const char keyset_tbl[4][8] = {"Factory", "Debug", "Retail", "Invalid"};
-    gfx_printf(16, index, 0, "Keyset:   %s", keyset_tbl[(otp[0x080] & 0x18) >> 3]);
-
-    index += CHAR_SIZE_DRC_Y + 4;
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    memcpy(buf1, &seeprom[0x21], 2);
-    buf1[2] = '\0';
-    gfx_printf(16, index, 0, "boardType:   %s", buf1);
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    const unsigned int sataDevice_id = seeprom[0x2C];
-    static const char* const sataDevice_tbl[] = {
-        NULL, "Default", "No device", "ROM drive",
-        "R drive", "MION", "SES", "GEN2-HDD",
-        "GEN1-HDD",
-    };
-    const char *sataDevice = NULL;
-    if (sataDevice_id < 9) {
-        sataDevice = sataDevice_tbl[sataDevice_id];
-    }
-    if (sataDevice) {
-        gfx_printf(16, index, 0, "sataDevice:  %u (%s)", sataDevice_id, sataDevice);
-    } else {
-        gfx_printf(16, index, 0, "sataDevice:  %u", sataDevice_id);
-    }
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    const unsigned int consoleType_id = seeprom[0x2D];
-    static const char* const consoleType_tbl[] = {
-        NULL, "WUP", "CAT-R", "CAT-DEV",
-        "EV board", "Kiosk", "OrchestraX", "WUIH",
-        "WUIH_DEV", "CAT_DEV_WUIH",
-    };
-    const char* consoleType = NULL;
-    if (consoleType_id < 10) {
-        consoleType = consoleType_tbl[consoleType_id];
-    }
-    if (consoleType) {
-        gfx_printf(16, index, 0, "consoleType: %u (%s)", consoleType_id, consoleType);
-    } else {
-        gfx_printf(16, index, 0, "consoleType: %u", consoleType_id);
-    }
-    index += CHAR_SIZE_DRC_Y + 4;
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    int productArea_id = 0; // 0-6, matches title ID
-    int gameRegion;
-    res = getRegionInfo(&productArea_id, &gameRegion);
-    if (res >= 0) {
-        // productArea is a single region.
-        gfx_printf(16, index, 0, "productArea: %s", region_tbl[productArea_id]);
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        // gameRegion is multiple regions.
-        gfx_printf(16, index, 0, "gameRegion:  %s %s %s %s %s %s",
-            (gameRegion & MCP_REGION_JAPAN)  ? region_tbl[0] : "---",
-            (gameRegion & MCP_REGION_USA)    ? region_tbl[1] : "---",
-            (gameRegion & MCP_REGION_EUROPE) ? region_tbl[2] : "---",
-            (gameRegion & MCP_REGION_CHINA)  ? region_tbl[4] : "---",
-            (gameRegion & MCP_REGION_KOREA)  ? region_tbl[5] : "---",
-            (gameRegion & MCP_REGION_TAIWAN) ? region_tbl[6] : "---");
-        index += CHAR_SIZE_DRC_Y + 4;
-    }
-
-    // Wii U Menu version
-    // NOTE: If productArea doesn't match the installed Wii U Menu,
-    // the Wii U Menu version won't be displayed.
-#define VERSION_BIN_MAGIC_STR "VER\0"
-#define VERSION_BIN_MAGIC_U32 0x56455200
-    typedef struct _version_bin_t {
-        union {
-            char c[4];       // [0x000] "VER\0"
-            uint32_t u32;   // [0x000] 0x56455200
-        } ver_magic;
-        uint32_t major;     // [0x004] Major version
-        uint32_t minor;     // [0x008] Minor version
-        uint32_t revision;  // [0x00C] Revision
-        char region;        // [0x010] Region character: 'J', 'U', 'E'
-
-        uint8_t reserved[47];   // [0x011]
-    } version_bin_t;
-    version_bin_t* const version_bin = (version_bin_t*)((uint8_t*)dataBuffer + 0x600);
-    version_bin->ver_magic.u32 = 0;
-
-    char path[] = "/vol/storage_mlc01/sys/title/00050010/10041x00/content/version.bin";
-    path[43] = productArea_id + '0';
-
-    int verHandle;
-    res = FSA_OpenFile(fsaHandle, path, "r", &verHandle);
-    if (res >= 0) {
-        // version.bin should always be 64 bytes.
-        res = FSA_ReadFile(fsaHandle, version_bin, 1, sizeof(*version_bin), verHandle, 0);
-        FSA_CloseFile(fsaHandle, verHandle);
-        if (res == sizeof(*version_bin)) {
-            // Did we find a valid version.bin?
-            if (version_bin->ver_magic.u32 == VERSION_BIN_MAGIC_U32) {
-                // Found a valid version.bin.
-                gfx_printf(16, index, 0, "Wii U Menu version: %lu.%lu.%lu %c",
-                    version_bin->major, version_bin->minor, version_bin->revision, version_bin->region);
-                index += CHAR_SIZE_DRC_Y + 4;
-            }
-        }
-    }
-
-    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-
-    index += CHAR_SIZE_DRC_Y + 4;
-
-    // Read info about IOS-FS' memory devices
-    res = MDReadInfo();
-    if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read memory device info: %x", res);
-        waitButtonInput();
-        return;
-    }
-
-    for (int i = 0; i < 2; i++) {
-        MDBlkDrv* drv = MDGetBlkDrv(i);
-        // Ignore unregistered drivers and the SD Card
-        if (!drv->registered || drv->params.device_type == SAL_DEVICE_TYPE_SD_CARD) {
-            continue;
-        }
-
-        const char* deviceType = "Unknown";
-        if (drv->params.device_type == SAL_DEVICE_TYPE_MLC) {
-            deviceType = "MLC";
-        }
-
-        gfx_printf(16, index, 0, "Memory device %d (Type 0x%lx '%s'):", i, drv->params.device_type, deviceType);
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        const uint16_t mid = drv->params.mid_prv >> 16;
-
-        // Find the manufacturer based on the manufacturer ID
-        // If you have a console with a manufacturer not listed here, please make a PR
-        const char* manufacturer = "Unknown";
-        if (mid == 0x11) {
-            manufacturer = "Toshiba";
-        } else if (mid == 0x15) {
-            manufacturer = "Samsung";
-        } else if (mid == 0x90) {
-            manufacturer = "Hynix";
-        }
-
-        gfx_printf(16, index, 0, "  Manufacturer ID: 0x%02x (%s)", mid, manufacturer);
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        uint16_t prv = drv->params.mid_prv & 0xff;
-
-        gfx_printf(16, index, 0, "  Product revision: 0x%02x (%d.%d)", prv, prv >> 4, prv & 0xf);
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        gfx_printf(16, index, 0, "  Product name: %s", drv->params.name1);
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        uint32_t totalSizeMiB = (uint32_t) ((drv->params.numBlocks * drv->params.blockSize) / 1024ull / 1024ull);
-        gfx_printf(16, index, 0, "  Size: %llu x %lu (%lu MiB)", drv->params.numBlocks, drv->params.blockSize, totalSizeMiB);
-        index += CHAR_SIZE_DRC_Y + 4;
-
-        // Display the full CID and CSD registers
-        uint32_t cid[4];
-        res = MDGetCID(drv->deviceId, cid);
-        if (res == 0) {
-            gfx_printf(16, index, 0, "  CID: %08lx%08lx%08lx%08lx", cid[0], cid[1], cid[2], cid[3]);
-            index += CHAR_SIZE_DRC_Y + 4;
-        }
-
-        uint32_t csd[4];
-        res = MDGetCSD(drv->deviceId, csd);
-        if (res == 0) {
-            gfx_printf(16, index, 0, "  CSD: %08lx%08lx%08lx%08lx", csd[0], csd[1], csd[2], csd[3]);
-            index += CHAR_SIZE_DRC_Y + 4;
-        }
-    }
-
-    waitButtonInput();
+    return 0;
 }
 
 static void option_Shutdown(void)
@@ -1494,9 +986,9 @@ int menuThread(void* arg)
 
     int selected = 0;
     while (1) {
-        selected = drawMenu("Wii U Recovery Menu v0.4 by GaryOderNichts",
+        selected = drawMenu("Wii U Recovery Menu v" VERSION_STRING " by GaryOderNichts",
             mainMenuOptions, ARRAY_SIZE(mainMenuOptions), selected,
-            0, 16, 16+8+2+8);
+            MenuFlag_ShowGitHubLink, 16, 16+8+2+8);
         if (selected >= 0 && selected < ARRAY_SIZE(mainMenuOptions)) {
             mainMenuOptions[selected].callback();
         }
