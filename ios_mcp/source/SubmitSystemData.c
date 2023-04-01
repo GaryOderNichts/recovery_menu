@@ -489,7 +489,7 @@ void option_SubmitSystemData(void)
             // Otherwise, something failed.
             ok = (resp[0] == '2');
             gfx_set_font_color(ok ? COLOR_SUCCESS : COLOR_ERROR);
-            gfx_print(status_xpos, index, 0, resp);
+            index = gfx_print(status_xpos, index, 0, resp);
             index += CHAR_SIZE_DRC_Y;
             if (body) {
                 // Print the message body.
