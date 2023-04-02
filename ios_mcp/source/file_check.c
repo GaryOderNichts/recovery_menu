@@ -65,7 +65,7 @@ static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *d
         log_error(fsaHandle, logHandle, "ReadFile", path, res, dataBuffer);
         ret = 2;
     }
-    write_log(fsaHandle, logHandle, "StartClose", path, 0, dataBuffer);
+    write_log(fsaHandle, logHandle, "StartCloseFile", path, 0, dataBuffer);
     FSA_CloseFile(fsaHandle, readHandle);
 
     return ret;
