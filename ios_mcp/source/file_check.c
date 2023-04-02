@@ -29,7 +29,7 @@ static int error_count = 0;
 
 static int write_log(int fsaHandle, int logHandle, const char *operation, const char *path, int res, void *dataBuffer){
     snprintf(dataBuffer, COPY_BUFFER_SIZE, "%s;%s;-%08X\n", operation, path, res);
-    res = FSA_WriteFile(fsaHandle, dataBuffer, strnlen(dataBuffer, MAX_PATH_LENGHT), 1, logHandle, 0);
+    res = FSA_WriteFile(fsaHandle, dataBuffer, strnlen(dataBuffer, COPY_BUFFER_SIZE), 1, logHandle, 0);
     if(res!=1){
       printf_error(6 + 8 + 2 + 8, "Error writing log: -%08X", -res);
       return -1;
@@ -59,7 +59,7 @@ static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *d
 
     if (res < 0) {
         log_error(fsaHandle, logHandle, "ReadFile", path, res, dataBuffer);
-        ret = 1;
+        ret = 2;
     }
 
     FSA_CloseFile(fsaHandle, readHandle);
@@ -167,7 +167,7 @@ error:
         if(dir_stack[depth])
             FSA_CloseDir(fsaHandle, dir_stack[depth]);
     }
-    write_log(fsaHandle, logHandle, "finished", path, error_count, dataBuffer);
+    write_log(fsaHandle, logHandle, "finished", base_path, error_count, dataBuffer);
 
     if(path)
         IOS_HeapFree(LOCAL_PROCESS_HEAP_ID, path);
