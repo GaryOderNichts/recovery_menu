@@ -44,6 +44,7 @@ int FSA_OpenFile(int fd, const char* path, const char* mode, int* outHandle);
 int FSA_ReadFile(int fd, void* data, uint32_t size, uint32_t cnt, int fileHandle, uint32_t flags);
 int FSA_WriteFile(int fd, void* data, uint32_t size, uint32_t cnt, int fileHandle, uint32_t flags);
 int FSA_StatFile(int fd, int handle, FSStat* out_data);
+int FSA_FlushFile(int fd, int fileHandle);
 int FSA_CloseFile(int fd, int fileHandle);
 int FSA_SetPosFile(int fd, int fileHandle, uint32_t position);
 int FSA_GetStat(int fd, const char* path, FSStat* out_data);
