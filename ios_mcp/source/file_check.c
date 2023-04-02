@@ -49,12 +49,14 @@ static int log_error(int fsaHandle, int logHandle, const char *operation, const 
 static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *dataBuffer, int *in_out_error_cnt){
     int ret = 0;
     int readHandle = 0;
+    write_log(fsaHandle, logHandle, "StartOpenFile", path, 0, dataBuffer);
     int res = FSA_OpenFile(fsaHandle, path, "r", &readHandle);
     if (res < 0) {
         log_error(fsaHandle, logHandle, "OpenFile", path, res, dataBuffer);
         return 1;
     }
 
+    write_log(fsaHandle, logHandle, "StartReadFile", path, 0, dataBuffer);
     do{
         res = FSA_ReadFile(fsaHandle, dataBuffer, 1, COPY_BUFFER_SIZE, readHandle, 0);
     } while (res > 0);
@@ -63,13 +65,14 @@ static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *d
         log_error(fsaHandle, logHandle, "ReadFile", path, res, dataBuffer);
         ret = 2;
     }
-
+    write_log(fsaHandle, logHandle, "StartClose", path, 0, dataBuffer);
     FSA_CloseFile(fsaHandle, readHandle);
 
     return ret;
 }
 
 static int open_dir_e(int fsaHandle, const char *path, int *dir_handle, int logHandle, void *dataBuffer, int *in_out_error_cnt){
+    write_log(fsaHandle, logHandle, "StartOpenDir", path, 0, dataBuffer);
     int res = FSA_OpenDir(fsaHandle, path, dir_handle);
     if (res < 0) {
         log_error(fsaHandle, logHandle, "OpenDir", path, res, dataBuffer);
@@ -111,12 +114,14 @@ int checkDirRecursive(int fsaHandle, const char *base_path, int logHandle){
     ret = 0;
     while(depth >= 0){
         FSDirectoryEntry dir_entry;
+        write_log(fsaHandle, logHandle, "StartReadDir", path, 0, dataBuffer);
         res = FSA_ReadDir(fsaHandle, dir_stack[depth], &dir_entry);
         if(res < 0){
             if(res != END_OF_DIR){
                 ret++;
                 log_error(fsaHandle, logHandle, "ReadDir", path, res, dataBuffer);
             }
+            write_log(fsaHandle, logHandle, "CloseDir", path, 0, dataBuffer);
             FSA_CloseDir(fsaHandle, dir_stack[depth]);
             dir_stack[depth] = 0;
             depth--;
