@@ -69,6 +69,10 @@ int drawMenu(const char* title, const Menu* menu, size_t count,
  */
 void waitButtonInput(void);
 
+void print_error(int index, const char *msg);
+
+void printf_error(int index, const char *format, ...);
+
 /**
  * Initialize the network configuration.
  * @param index [in/out] Starting (and ending) Y position.
