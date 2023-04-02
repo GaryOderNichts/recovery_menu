@@ -49,6 +49,11 @@ static int log_error(int fsaHandle, int logHandle, const char *operation, const 
 static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *dataBuffer, int *in_out_error_cnt){
     int ret = 0;
     int readHandle = 0;
+
+    static uint8_t color = 0;
+    SMC_SetNotificationLED(color?NOTIF_LED_BLUE:NOTIF_LED_ORANGE);
+    color=!color;
+
     write_log(fsaHandle, logHandle, "StartOpenFile", path, 0, dataBuffer);
     int res = FSA_OpenFile(fsaHandle, path, "r", &readHandle);
     if (res < 0) {
