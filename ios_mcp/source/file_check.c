@@ -30,7 +30,9 @@ static int error_count = 0;
 static int write_log(int fsaHandle, int logHandle, const char *operation, const char *path, int res, void *dataBuffer){
     snprintf(dataBuffer, COPY_BUFFER_SIZE, "%s;%s;-%08X\n", operation, path, res);
     res = FSA_WriteFile(fsaHandle, dataBuffer, strnlen(dataBuffer, COPY_BUFFER_SIZE), 1, logHandle, 0);
-    if(res!=1){
+    if(res == 1)
+        res = FSA_FlushFile(fsaHandle, logHandle);
+    if(res<0){
       printf_error(6 + 8 + 2 + 8, "Error writing log: -%08X", -res);
       return -1;
     }
