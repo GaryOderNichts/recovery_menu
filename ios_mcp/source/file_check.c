@@ -9,9 +9,7 @@
 
 
 #define COPY_BUFFER_SIZE 1024
-#define DIR_ENTRY_IS_LINK 0x10000
 #define MAX_PATH_LENGHT 0x27F
-#define END_OF_DIR -0x30004
 #define MAX_DIRECTORY_DEPTH 60
 
 #define printf_fs_error(error_cnt, fmt, ...) ({\
@@ -20,8 +18,6 @@
     gfx_printf(16, 100, GfxPrintFlag_ClearBG, fmt, ##__VA_ARGS__); \
     gfx_set_font_color(COLOR_PRIMARY); })
     
-
-
 static void* malloc_e(size_t sz){
     void *buff = IOS_HeapAlloc(LOCAL_PROCESS_HEAP_ID, sz);
     if(!buff)
@@ -48,8 +44,7 @@ static int log_error(int fsaHandle, int logHandle, const char *operation, const 
 }
 
 
-static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *dataBuffer, int *in_out_error_cnt)
-{
+static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *dataBuffer, int *in_out_error_cnt){
     int ret = 0;
     int readHandle = 0;
     int res = FSA_OpenFile(fsaHandle, path, "r", &readHandle);
@@ -81,8 +76,7 @@ static int open_dir_e(int fsaHandle, const char *path, int *dir_handle, int logH
     return 0;
 }
 
-int checkDirRecursive(int fsaHandle, const char *base_path, int logHandle)
-{
+int checkDirRecursive(int fsaHandle, const char *base_path, int logHandle){
     void* dataBuffer = NULL;
     char *path = NULL;
     int ret = -1;

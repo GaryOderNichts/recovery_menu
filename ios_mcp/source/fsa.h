@@ -21,6 +21,8 @@ typedef struct {
 } FSDirectoryEntry;
 
 #define DIR_ENTRY_IS_DIRECTORY      0x80000000
+#define DIR_ENTRY_IS_LINK           0x10000
+#define END_OF_DIR                  -0x30004
 
 #define FSA_MOUNTFLAGS_BINDMOUNT    (1 << 0)
 #define FSA_MOUNTFLAGS_GLOBAL       (1 << 1)
