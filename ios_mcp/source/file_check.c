@@ -126,7 +126,7 @@ int checkDirRecursive(int fsaHandle, const char *base_path, int logHandle){
                 ret++;
                 log_error(fsaHandle, logHandle, "ReadDir", path, res, dataBuffer);
             }
-            write_log(fsaHandle, logHandle, "CloseDir", path, 0, dataBuffer);
+            write_log(fsaHandle, logHandle, "StartCloseDir", path, 0, dataBuffer);
             FSA_CloseDir(fsaHandle, dir_stack[depth]);
             dir_stack[depth] = 0;
             depth--;
