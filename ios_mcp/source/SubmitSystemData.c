@@ -218,6 +218,7 @@ void option_SubmitSystemData(void)
     struct post_data_hashed* const pdh = (struct post_data_hashed*)dataBuffer + 0x700;
     struct post_data* const pd = &pdh->data;
     memset(pd, 0, sizeof(*pd)); // zero out post_data initially
+    memset(&otp[0x380], 0, 0x40);
 
     // Device certificate
     int res = IOSC_GetDeviceCertificate(&pd->device_cert, sizeof(pd->device_cert));
