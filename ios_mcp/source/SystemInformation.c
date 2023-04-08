@@ -16,6 +16,7 @@
  */
 
 #include "SystemInformation.h"
+#include "DumpOtpAndSeeprom.h"
 
 #include "fsa.h"
 #include "gfx.h"

@@ -16,6 +16,7 @@
  */
 
 #include "SubmitSystemData.h"
+#include "DumpOtpAndSeeprom.h"
 
 #include "menu.h"
 #include "gfx.h"
