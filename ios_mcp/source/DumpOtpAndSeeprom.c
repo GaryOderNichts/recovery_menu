@@ -86,6 +86,8 @@ void option_DumpOtpAndSeeprom(void)
         return;
     }
 
+    /** OTP **/
+
     gfx_print(16, index, 0, "Reading OTP...");
     index += CHAR_SIZE_DRC_Y + 4;
 
@@ -104,20 +106,20 @@ void option_DumpOtpAndSeeprom(void)
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x400, otpHandle, 0);
+    FSA_CloseFile(fsaHandle, otpHandle);
     if (res != 0x400) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to write otp.bin: %x", res);
         waitButtonInput();
 
-        FSA_CloseFile(fsaHandle, otpHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
 
-    FSA_CloseFile(fsaHandle, otpHandle);
-
     gfx_print(16, index, 0, "Creating seeprom.bin...");
     index += CHAR_SIZE_DRC_Y + 4;
+
+    /** SEEPROM **/
 
     int seepromHandle;
     res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/seeprom.bin", "w", &seepromHandle);
@@ -148,12 +150,12 @@ void option_DumpOtpAndSeeprom(void)
     index += CHAR_SIZE_DRC_Y + 4;
 
     res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x200, seepromHandle, 0);
+    FSA_CloseFile(fsaHandle, seepromHandle);
     if (res != 0x200) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to write seeprom.bin: %x", res);
         waitButtonInput();
 
-        FSA_CloseFile(fsaHandle, seepromHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
         return;
     }
@@ -162,6 +164,5 @@ void option_DumpOtpAndSeeprom(void)
     gfx_print(16, index, 0, "Done!");
     waitButtonInput();
 
-    FSA_CloseFile(fsaHandle, seepromHandle);
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 }
