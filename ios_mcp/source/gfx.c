@@ -185,24 +185,63 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
     }
 }
 
-void gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* string)
+/**
+ * Print text to the TV and DRC.
+ * Handles automatic newlines. ('\n' to go the next line)
+ * @param x X position
+ * @param y Y position
+ * @param gfxPrintFlags GfxPrintFlags
+ * @param str Text to print
+ * @return New Y position. (If no '\n' characters were included, same as the input y value.)
+ */
+uint32_t gfx_print(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* str)
 {
+    const uint32_t orig_x = x;
+
     if (gfxPrintFlags & GfxPrintFlag_AlignRight) {
-        x -= gfx_get_text_width(string);
+        x -= gfx_get_text_width(str);
     }
     if (gfxPrintFlags & GfxPrintFlag_ClearBG) {
         gfx_draw_rect_filled(x, y, SCREEN_WIDTH, CHAR_SIZE_DRC_Y, COLOR_BACKGROUND);
     }
 
-    for (; *string != '\0'; string++, x += CHAR_SIZE_DRC_X) {
-        char chr = *string;
+    for (; *str != '\0'; str++) {
+        const char chr = *str;
         if ((unsigned char)chr >= 32 && (unsigned char)chr <= 128) {
             gfx_draw_char(x, y, chr);
+        } else if (chr == '\n') {
+            // Newline; go to the start of the next line.
+            x = orig_x;
+            y += CHAR_SIZE_DRC_Y;
+            if (gfxPrintFlags & GfxPrintFlag_NewlinePlus4) {
+                y += 4;
+            }
+            continue;
         }
+
+        if ((gfxPrintFlags & GfxPrintFlag_Underline) && (chr != '_')) {
+            gfx_draw_char(x, y, '_');
+        }
+        x += CHAR_SIZE_DRC_X;
     }
+
+    return y;
 }
 
-void gfx_printf(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* format, ...)
+/**
+ * Print text to the TV and DRC using printf()-style formatting.
+ *
+ * Handles automatic newlines. ('\n' to go the next line)
+ * NOTE: Automatic newlines might not work properly with AlignRight.
+ *
+ * @param x X position
+ * @param y Y position
+ * @param gfxPrintFlags GfxPrintFlags
+ * @param format printf()-style format
+ * @param ... Format parameters
+ * @return New Y position. (If no '\n' characters were included, same as the input y value.)
+ */
+uint32_t gfx_printf(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -210,7 +249,9 @@ void gfx_printf(uint32_t x, uint32_t y, uint32_t gfxPrintFlags, const char* form
     char buffer[0x100];
 
     vsnprintf(buffer, sizeof(buffer), format, args);
-    gfx_print(x, y, gfxPrintFlags, buffer);
+    y = gfx_print(x, y, gfxPrintFlags, buffer);
 
     va_end(args);
+
+    return y;
 }

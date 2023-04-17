@@ -9,7 +9,7 @@
 
 #define HW_RSTB 0x0d800194
 
-static NOTIF_LED oldLedState = NOTIF_LED_PURPLE;
+static volatile uint8_t oldLedState = (uint8_t)NOTIF_LED_PURPLE;
 static int ledTid = -1;
 static volatile bool ledCanceled;
 static uint8_t ledThreadStack[0x400] __attribute__((aligned(0x20)));
@@ -54,11 +54,6 @@ int resetPPC(void)
     return 0;
 }
 
-int readSystemEventFlag(uint8_t* flag)
-{
-    return bspRead("SMC", 0, "SystemEventFlag", 1, flag);
-}
-
 int copy_file(int fsaFd, const char* src, const char* dst)
 {
     int readHandle;
@@ -94,34 +89,46 @@ int copy_file(int fsaFd, const char* src, const char* dst)
     return (res > 0) ? 0 : res;
 }
 
-int initDisplay(uint32_t configuration)
+int GFX_SubsystemInit(uint8_t unk)
+{
+    return bspInit("GFX", 0, "subsystem", 1, &unk);
+}
+
+int DISPLAY_DCInit(uint32_t configuration)
 {
     return bspWrite("DISPLAY", 0, "DC_INIT", 4, &configuration);
 }
 
-int readDCConfig(DisplayController_Config* config)
+int DISPLAY_ReadDCConfig(DC_Config* config)
 {
-    return bspRead("DISPLAY", 0, "DC_CONFIG", 0x14, config);
+    return bspRead("DISPLAY", 0, "DC_CONFIG", sizeof(DC_Config), config);
+}
+
+int SMC_ReadSystemEventFlag(uint8_t* flag)
+{
+    return bspRead("SMC", 0, "SystemEventFlag", 1, flag);
+}
+
+int SMC_SetODDPower(int power)
+{
+    return bspWrite("SMC", 0, "ODDPower", 4, &power);
 }
 
 static int ledThread(void *arg)
 {
     for(uint32_t i = 0; i < (uint32_t)arg; ++i)
     {
-        usleep(1);
+        usleep(10);
         if(ledCanceled)
             return 0;
     }
 
-    bspWrite("SMC", 0, "NotificationLED", 1, &oldLedState);
+    bspWrite("SMC", 0, "NotificationLED", 1, (uint8_t *)&oldLedState);
     return 0;
 }
 
 void setNotificationLED(NOTIF_LED state, uint32_t duration)
 {
-    if(state == oldLedState)
-        return;
-
     if(ledTid != -1)
     {
         ledCanceled = true;
@@ -129,8 +136,13 @@ void setNotificationLED(NOTIF_LED state, uint32_t duration)
         ledTid = -1;
     }
 
-    bspWrite("SMC", 0, "NotificationLED", 1, &state);
+    uint8_t state8 = (uint8_t)state;
+    if(state8 == oldLedState)
+        return;
 
+    bspWrite("SMC", 0, "NotificationLED", 1, &state8);
+
+    duration /= 10;
     if(duration != 0)
     {
         ledCanceled = false;
@@ -138,10 +150,5 @@ void setNotificationLED(NOTIF_LED state, uint32_t duration)
         IOS_StartThread(ledTid);
     }
     else
-        oldLedState = state;
-}
-
-int setDrivePower(int power)
-{
-    return bspWrite("SMC", 0, "ODDPower", 4, &power);
+        oldLedState = state8;
 }

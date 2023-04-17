@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <assert.h>
 
 /**
  * Number of elements in an array.
@@ -31,22 +32,23 @@ enum {
     DC_CONFIGURATION_1,
 };
 
-typedef struct DisplayController_Config {
+typedef struct DC_Config {
     uint32_t id;
     uint32_t field_0x4;
     int width;
     int height;
     void* framebuffer;
-} DisplayController_Config;
+} DC_Config;
+static_assert(sizeof(DC_Config) == 0x14);
 
 typedef enum {
     NOTIF_LED_OFF               = 0,
-    NOTIF_LED_ORANGE_BLINKING   = 1 << 0,
     NOTIF_LED_ORANGE            = 1 << 1,
-    NOTIF_LED_RED_BLINKING      = 1 << 2,
+    NOTIF_LED_ORANGE_BLINKING   = NOTIF_LED_ORANGE | (1 << 0),
     NOTIF_LED_RED               = 1 << 3,
-    NOTIF_LED_BLUE_BLINKING     = 1 << 4,
+    NOTIF_LED_RED_BLINKING      = NOTIF_LED_RED | (1 << 2),
     NOTIF_LED_BLUE              = 1 << 5,
+    NOTIF_LED_BLUE_BLINKING     = NOTIF_LED_BLUE | (1 << 4),
     NOTIF_LED_PURPLE            = NOTIF_LED_RED | NOTIF_LED_BLUE,
     NOTIF_LED_PURPLE_BLINKING   = NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE_BLINKING,
 } NOTIF_LED;
@@ -59,14 +61,16 @@ int EEPROM_Read(uint16_t offset, uint16_t num, uint16_t* buf);
 
 int resetPPC(void);
 
-int readSystemEventFlag(uint8_t* flag);
-
 int copy_file(int fsaFd, const char* src, const char* dst);
 
-int initDisplay(uint32_t configuration);
+int GFX_SubsystemInit(uint8_t unk);
 
-int readDCConfig(DisplayController_Config* config);
+int DISPLAY_DCInit(uint32_t configuration);
+
+int DISPLAY_ReadDCConfig(DC_Config* config);
+
+int SMC_ReadSystemEventFlag(uint8_t* flag);
+
+int SMC_SetODDPower(int power);
 
 void setNotificationLED(NOTIF_LED state, uint32_t duration);
-
-int setDrivePower(int power);
