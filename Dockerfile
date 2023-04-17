@@ -1,4 +1,4 @@
-FROM devkitpro/devkitarm:20220531
+FROM devkitpro/devkitarm:20221115
 
 ENV PATH=$DEVKITARM/bin:$PATH
 

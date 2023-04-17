@@ -54,11 +54,6 @@ int resetPPC(void)
     return 0;
 }
 
-int readSystemEventFlag(uint8_t* flag)
-{
-    return bspRead("SMC", 0, "SystemEventFlag", 1, flag);
-}
-
 int copy_file(int fsaFd, const char* src, const char* dst)
 {
     int readHandle;
@@ -94,14 +89,29 @@ int copy_file(int fsaFd, const char* src, const char* dst)
     return (res > 0) ? 0 : res;
 }
 
-int initDisplay(uint32_t configuration)
+int GFX_SubsystemInit(uint8_t unk)
+{
+    return bspInit("GFX", 0, "subsystem", 1, &unk);
+}
+
+int DISPLAY_DCInit(uint32_t configuration)
 {
     return bspWrite("DISPLAY", 0, "DC_INIT", 4, &configuration);
 }
 
-int readDCConfig(DisplayController_Config* config)
+int DISPLAY_ReadDCConfig(DC_Config* config)
 {
-    return bspRead("DISPLAY", 0, "DC_CONFIG", 0x14, config);
+    return bspRead("DISPLAY", 0, "DC_CONFIG", sizeof(DC_Config), config);
+}
+
+int SMC_ReadSystemEventFlag(uint8_t* flag)
+{
+    return bspRead("SMC", 0, "SystemEventFlag", 1, flag);
+}
+
+int SMC_SetODDPower(int power)
+{
+    return bspWrite("SMC", 0, "ODDPower", 4, &power);
 }
 
 static int ledThread(void *arg)
@@ -141,9 +151,4 @@ void setNotificationLED(NOTIF_LED state, uint32_t duration)
     }
     else
         oldLedState = state8;
-}
-
-int setDrivePower(int power)
-{
-    return bspWrite("SMC", 0, "ODDPower", 4, &power);
 }
