@@ -189,7 +189,7 @@ error:
         if(dir_stack[depth])
             FSA_CloseDir(fsaHandle, dir_stack[depth]);
     }
-    snprintf(dataBuffer, COPY_BUFFER_SIZE, "INFO;finished;%s;%d\n", path, error_count);
+    snprintf(dataBuffer, COPY_BUFFER_SIZE, "INFO;finished;%s;%d\n", base_path, error_count);
     return write_log(fsaHandle, logHandle, dataBuffer);
 
     if(path)
