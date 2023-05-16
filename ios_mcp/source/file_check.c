@@ -46,9 +46,9 @@ static int log_error(int fsaHandle, int logHandle, const char *operation, const 
     return write_log(fsaHandle, logHandle, dataBuffer);
 }
 
-static int log_info(int fsaHandle, int logHandle, const char *operation, const char *path, int res, void *dataBuffer){
+static int log_info(int fsaHandle, int logHandle, const char *operation, const char *path, void *dataBuffer){
     #if LOGINFO
-        snprintf(dataBuffer, COPY_BUFFER_SIZE, "INFO;%s;%s;%d\n", operation, path, res);
+        snprintf(dataBuffer, COPY_BUFFER_SIZE, "INFO;%s;%s;00000000\n", operation, path);
         return write_log(fsaHandle, logHandle, dataBuffer);
     #else
         return 0;
@@ -64,14 +64,14 @@ static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *d
     SMC_SetNotificationLED(color?NOTIF_LED_BLUE:NOTIF_LED_ORANGE);
     color=!color;
 
-    log_info(fsaHandle, logHandle, "StartOpenFile", path, 0, dataBuffer);
+    log_info(fsaHandle, logHandle, "StartOpenFile", path, dataBuffer);
     int res = FSA_OpenFile(fsaHandle, path, "r", &readHandle);
     if (res < 0) {
         log_error(fsaHandle, logHandle, "OpenFile", path, res, dataBuffer);
         return 1;
     }
 
-    log_info(fsaHandle, logHandle, "StartReadFile", path, 0, dataBuffer);
+    log_info(fsaHandle, logHandle, "StartReadFile", path, dataBuffer);
     do{
         res = FSA_ReadFile(fsaHandle, dataBuffer, 1, COPY_BUFFER_SIZE, readHandle, 0);
     } while (res > 0);
@@ -80,14 +80,14 @@ static int tryToReadFile(int fsaHandle, const char *path, int logHandle, char *d
         log_error(fsaHandle, logHandle, "ReadFile", path, res, dataBuffer);
         ret = 2;
     }
-    log_info(fsaHandle, logHandle, "StartCloseFile", path, 0, dataBuffer);
+    log_info(fsaHandle, logHandle, "StartCloseFile", path, dataBuffer);
     FSA_CloseFile(fsaHandle, readHandle);
 
     return ret;
 }
 
 static int open_dir_e(int fsaHandle, const char *path, int *dir_handle, int logHandle, void *dataBuffer, int *in_out_error_cnt){
-    log_info(fsaHandle, logHandle, "StartOpenDir", path, 0, dataBuffer);
+    log_info(fsaHandle, logHandle, "StartOpenDir", path, dataBuffer);
     int res = FSA_OpenDir(fsaHandle, path, dir_handle);
     if (res < 0) {
         log_error(fsaHandle, logHandle, "OpenDir", path, res, dataBuffer);
@@ -129,14 +129,14 @@ int checkDirRecursive(int fsaHandle, const char *base_path, int logHandle){
     ret = 0;
     while(depth >= 0){
         FSDirectoryEntry dir_entry;
-        log_info(fsaHandle, logHandle, "StartReadDir", path, 0, dataBuffer);
+        log_info(fsaHandle, logHandle, "StartReadDir", path, dataBuffer);
         res = FSA_ReadDir(fsaHandle, dir_stack[depth], &dir_entry);
         if(res < 0){
             if(res != END_OF_DIR){
                 ret++;
                 log_error(fsaHandle, logHandle, "ReadDir", path, res, dataBuffer);
             }
-            log_info(fsaHandle, logHandle, "StartCloseDir", path, 0, dataBuffer);
+            log_info(fsaHandle, logHandle, "StartCloseDir", path, dataBuffer);
             FSA_CloseDir(fsaHandle, dir_stack[depth]);
             dir_stack[depth] = 0;
             depth--;
@@ -189,7 +189,8 @@ error:
         if(dir_stack[depth])
             FSA_CloseDir(fsaHandle, dir_stack[depth]);
     }
-    log_info(fsaHandle, logHandle, "finished", base_path, error_count, dataBuffer);
+    snprintf(dataBuffer, COPY_BUFFER_SIZE, "INFO;finished;%s;%d\n", path, error_count);
+    return write_log(fsaHandle, logHandle, dataBuffer);
 
     if(path)
         IOS_HeapFree(LOCAL_PROCESS_HEAP_ID, path);
