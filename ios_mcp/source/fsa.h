@@ -21,6 +21,8 @@ typedef struct {
 } FSDirectoryEntry;
 
 #define DIR_ENTRY_IS_DIRECTORY      0x80000000
+#define DIR_ENTRY_IS_LINK           0x10000
+#define END_OF_DIR                  -0x30004
 
 #define FSA_MOUNTFLAGS_BINDMOUNT    (1 << 0)
 #define FSA_MOUNTFLAGS_GLOBAL       (1 << 1)
@@ -42,6 +44,7 @@ int FSA_OpenFile(int fd, const char* path, const char* mode, int* outHandle);
 int FSA_ReadFile(int fd, void* data, uint32_t size, uint32_t cnt, int fileHandle, uint32_t flags);
 int FSA_WriteFile(int fd, void* data, uint32_t size, uint32_t cnt, int fileHandle, uint32_t flags);
 int FSA_StatFile(int fd, int handle, FSStat* out_data);
+int FSA_FlushFile(int fd, int fileHandle);
 int FSA_CloseFile(int fd, int fileHandle);
 int FSA_SetPosFile(int fd, int fileHandle, uint32_t position);
 int FSA_GetStat(int fd, const char* path, FSStat* out_data);

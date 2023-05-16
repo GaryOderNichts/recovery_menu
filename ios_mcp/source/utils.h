@@ -49,6 +49,7 @@ enum {
     NOTIF_LED_RED               = 1 << 3,
     NOTIF_LED_BLUE_BLINKING     = 1 << 4,
     NOTIF_LED_BLUE              = 1 << 5,
+    NOTIF_LED_PURPLE            = NOTIF_LED_RED | NOTIF_LED_BLUE,
 };
 
 uint32_t kernRead32(uint32_t address);

@@ -29,12 +29,14 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "StartWupserver.h"
 #include "PairDRC.h"
 #include "DebugSystemRegion.h"
 #include "SystemInformation.h"
 #include "SubmitSystemData.h"
+#include "file_check.h"
 
 static void option_SetColdbootTitle(void);
 static void option_DumpSyslogs(void);
@@ -43,6 +45,7 @@ static void option_LoadNetConf(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
 static void option_Shutdown(void);
+static void option_checkMLC(void);
 
 extern int ppcHeartBeatThreadId;
 extern uint64_t currentColdbootOS;
@@ -60,6 +63,7 @@ static const Menu mainMenuOptions[] = {
     {"Install WUP",                 {.callback = option_InstallWUP}},
     {"Edit Parental Controls",      {.callback = option_EditParental}},
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
+    {"Check MLC",                   {.callback = option_checkMLC}},
     {"System Information",          {.callback = option_SystemInformation}},
     {"Submit System Data",          {.callback = option_SubmitSystemData}},
     {"Shutdown",                    {.callback = option_Shutdown}},
@@ -221,6 +225,28 @@ void waitButtonInput(void)
             cur_flag = flag;
         }
     }
+}
+
+void print_error(int index, const char *msg)
+{
+    gfx_set_font_color(COLOR_ERROR);
+    gfx_print(16, index, GfxPrintFlag_ClearBG, msg);
+    SMC_SetNotificationLED(NOTIF_LED_RED);
+    waitButtonInput();
+    SMC_SetNotificationLED(NOTIF_LED_PURPLE);
+}
+
+void printf_error(int index, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    char buffer[0x100];
+
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    print_error(index, buffer);
 }
 
 static void option_SetColdbootTitle(void)
@@ -930,6 +956,35 @@ static void option_Shutdown(void)
     }
 
     IOS_Shutdown(0);   
+}
+
+static void option_checkMLC(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+
+    drawTopBar("Checking MLC...");
+    SMC_SetNotificationLED(NOTIF_LED_ORANGE_BLINKING);
+
+    int fileHandle;
+    int res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/mlc_checker.txt", "w", &fileHandle);
+    if (res < 0) {
+        printf_error(16 + 8 + 2 + 8, "Failed to create mlc_checker.txt: %x", res);
+        return;
+    }
+
+    int result = checkDirRecursive(fsaHandle, "/vol/storage_mlc01", fileHandle);
+    if (result<0) {
+        print_error(16 + 8 + 2 + 15, "ERROR!");
+        goto close;
+    }
+
+    gfx_draw_rect_filled(0, 16 + 8 + 2 + 15, 1280, 16 + 8 + 2 + 8, COLOR_BACKGROUND);
+    gfx_set_font_color(COLOR_SUCCESS);
+    gfx_printf(16, 16 + 8 + 2 + 15, 0, "Done! %u errors", result);
+
+close:
+    FSA_CloseFile(fsaHandle, fileHandle);
+    SMC_SetNotificationLED(NOTIF_LED_PURPLE);
 }
 
 int menuThread(void* arg)
