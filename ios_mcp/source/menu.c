@@ -42,6 +42,7 @@ static void option_DumpOtpAndSeeprom(void);
 static void option_LoadNetConf(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
+static void option_DumpBoot0(void);
 static void option_Shutdown(void);
 
 extern int ppcHeartBeatThreadId;
@@ -62,6 +63,7 @@ static const Menu mainMenuOptions[] = {
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
     {"System Information",          {.callback = option_SystemInformation}},
     {"Submit System Data",          {.callback = option_SubmitSystemData}},
+    {"Dump BOOT0",                  {.callback = option_DumpBoot0}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
 
@@ -914,6 +916,71 @@ int read_otp_seeprom(void *buf, int index)
     }
 
     return 0;
+}
+
+static void option_DumpBoot0(void)
+{
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("Dumping BOOT0...");
+
+    uint32_t index = 16 + 8 + 2 + 8;
+    gfx_print(16, index, 0, "Creating boot0.bin...");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x4000, 0x40);
+    if (!dataBuffer) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_print(16, index, 0, "Out of memory!");
+        waitButtonInput();
+        return;
+    }
+
+    int fileHandle;
+    int res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/boot0.bin", "w", &fileHandle);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to create boot0.bin: %x", res);
+        waitButtonInput();
+
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        return;
+    }
+
+    gfx_print(16, index, 0, "Reading BOOT0...");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    res = IOS_Syscall0x81(2, (uint32_t)dataBuffer, 0x4000);
+    if (res < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read BOOT0: %x", res);
+        waitButtonInput();
+
+        FSA_CloseFile(fsaHandle, fileHandle);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        return;
+    }
+
+    gfx_print(16, index, 0, "Writing boot0.bin...");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    res = FSA_WriteFile(fsaHandle, dataBuffer, 1, 0x4000, fileHandle, 0);
+    if (res != 0x4000) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to write boot0.bin: %x", res);
+        waitButtonInput();
+
+        FSA_CloseFile(fsaHandle, fileHandle);
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        return;
+    }
+
+    FSA_CloseFile(fsaHandle, fileHandle);
+
+    gfx_set_font_color(COLOR_SUCCESS);
+    gfx_print(16, index, 0, "Done!");
+    waitButtonInput();
+
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
 }
 
 static void option_Shutdown(void)

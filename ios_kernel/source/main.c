@@ -21,6 +21,28 @@ int kernel_syscall_0x81(int type, uint32_t address, uint32_t value)
         res = *(volatile uint32_t*) address;
     } else if (type == 1) { // kernWrite32
         *(volatile uint32_t*) address = value;
+    } else if (type == 2) { // dump boot0
+        uint32_t physAddr = (uint32_t) IOS_VirtToPhys((void*) address);
+
+        uint32_t control_register = disable_mmu();
+
+        // enable boot0 mapping
+        uint32_t boot0 = *(volatile uint32_t*) 0x0D80018C;
+        *(volatile uint32_t*) 0x0D80018C = boot0 & ~0x1000;
+
+        // copy to provided address
+        for (uint32_t i = 0; i < 0x4000; i += 4) {
+            *(volatile uint32_t*)(physAddr + i) = *(volatile uint32_t*)(0xFFF00000 + i);
+        }
+
+        // disable boot0 mapping
+        *(volatile uint32_t*) 0x0D80018C = boot0;
+
+        restore_mmu(control_register);
+
+        // invalidate all cache
+        invalidate_dcache(NULL, 0x4001);
+        invalidate_icache();
     }
 
     set_domain_register(domainAccessPermissions[currentThreadContext->pid]);
