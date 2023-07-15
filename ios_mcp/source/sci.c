@@ -83,3 +83,13 @@ int SCIGetParentalSecAnswer(char* buf, uint32_t buf_size)
 {
     return _SCIReadSysConfig("parent.sec_answer", UC_DATA_TYPE_STRING, buf_size, buf);
 }
+
+int SCISetInitialLaunch(uint8_t initialLaunch)
+{
+    return  _SCIWriteSysConfig("cafe.initial_launch", UC_DATA_TYPE_U8, 1, &initialLaunch);
+}
+
+int SCIGetInitialLaunch(uint8_t* outInitialLaunch)
+{
+    return  _SCIReadSysConfig("cafe.initial_launch", UC_DATA_TYPE_U8, 1, outInitialLaunch);
+}
