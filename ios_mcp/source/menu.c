@@ -42,6 +42,7 @@ static void option_DumpOtpAndSeeprom(void);
 static void option_LoadNetConf(void);
 static void option_InstallWUP(void);
 static void option_EditParental(void);
+static void option_SetInitialLaunch(void);
 static void option_Shutdown(void);
 
 extern int ppcHeartBeatThreadId;
@@ -59,6 +60,7 @@ static const Menu mainMenuOptions[] = {
     {"Pair Gamepad",                {.callback = option_PairDRC}},
     {"Install WUP",                 {.callback = option_InstallWUP}},
     {"Edit Parental Controls",      {.callback = option_EditParental}},
+    {"Set Initinal Launch",         {.callback = option_SetInitialLaunch}},
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
     {"System Information",          {.callback = option_SystemInformation}},
     {"Submit System Data",          {.callback = option_SubmitSystemData}},
@@ -914,6 +916,62 @@ int read_otp_seeprom(void *buf, int index)
     }
 
     return 0;
+}
+
+static void option_SetInitialLaunch(void)
+{
+    static const Menu initialLaunchOptions[] = {
+        {"Back", { .tid = 256} },
+        {"2   - Default",       {.tid = 2}},
+        {"0   - Initial Setup", {.tid = 0}},
+        {"255 - Factory Reset", {.tid = 255}},
+    };
+    
+    const int option_count = sizeof(initialLaunchOptions) / sizeof(Menu);
+
+    int selected = 0;
+
+    gfx_clear(COLOR_BACKGROUND);
+    while (1) {
+        uint32_t index = 16 + 8 + 2 + 8;
+        gfx_set_font_color(COLOR_PRIMARY);
+
+        uint8_t currentInitialLaunch;
+        int rval = SCIGetInitialLaunch(&currentInitialLaunch);
+
+        if(rval<0)
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Error getting current Initial Launch Value: %X" , rval);
+        else
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Current initial Launch Value: %u", currentInitialLaunch);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        selected = drawMenu("Set Initial Launch Value",
+            initialLaunchOptions, option_count, selected, MenuFlag_NoClearScreen, 16, index);
+        index += (CHAR_SIZE_DRC_Y + 4) * option_count;
+
+        uint64_t newil = initialLaunchOptions[selected].tid;
+        if (newil == 256)
+            return;
+
+
+        index += (CHAR_SIZE_DRC_Y + 4) * 2;
+
+        gfx_set_font_color(COLOR_PRIMARY);
+        gfx_printf(16, index, GfxPrintFlag_ClearBG,
+            "Setting Initial Launch to %u", (uint8_t)newil);
+        index += CHAR_SIZE_DRC_Y + 4;
+
+        rval = SCISetInitialLaunch((uint8_t)newil);
+
+        if (rval < 0) {
+            gfx_set_font_color(COLOR_ERROR);
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Error! %X", rval);
+        } else {
+            gfx_set_font_color(COLOR_SUCCESS);
+            gfx_print(16, index, GfxPrintFlag_ClearBG, "Success!                                      ");
+        }
+
+    }
 }
 
 static void option_Shutdown(void)
