@@ -76,6 +76,9 @@ int _main(void* arg)
     // nop out odm log to not spam logs when stopping drive
     *(volatile uint32_t*) 0x1073880c = 0xe12fff1e; // bx lr
 
+    // disable halt on panic
+    *(volatile uint32_t*) 0x08129ce0 = 0xe12fff1e; // bx lr
+
     restore_mmu(control_register);
 
     // invalidate all cache
