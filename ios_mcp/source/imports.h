@@ -35,6 +35,7 @@ typedef struct __attribute__((__packed__)) {
 } UCSysConfig_t;
 
 int LONG_CALL setDefaultTitleId(uint64_t tid);
+#define encryptPrsh ((int (*)(uint32_t, uint32_t, void *, uint32_t)) (0x0500a610 | 1))
 
 typedef enum BSPHardwareVersions {
     BSP_HARDWARE_VERSION_UNKNOWN                    = 0x00000000,
