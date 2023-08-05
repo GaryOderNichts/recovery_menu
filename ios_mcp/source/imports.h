@@ -34,6 +34,7 @@ typedef struct __attribute__((__packed__)) {
 
 // thumb functions can't just be provided to the linker
 #define setDefaultTitleId ((int (*)(uint64_t tid)) (0x0510d984 | 1))
+#define encryptPrsh ((int (*)(uint32_t, uint32_t, void *, uint32_t)) (0x0500a610 | 1))
 
 typedef enum BSPHardwareVersions {
     BSP_HARDWARE_VERSION_UNKNOWN                    = 0x00000000,

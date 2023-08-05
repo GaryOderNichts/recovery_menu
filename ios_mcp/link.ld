@@ -20,5 +20,5 @@ SECTIONS {
     }
 }
 
-ASSERT(SIZEOF(.text) < 0xa000, "ios_mcp text is too big");
+ASSERT(SIZEOF(.text) < 0xf000, "ios_mcp text is too big");
 ASSERT(SIZEOF(.bss) < 0x3000, "ios_mcp bss is too big");
