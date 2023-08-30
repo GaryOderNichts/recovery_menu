@@ -1030,13 +1030,16 @@ static void option_LoadBoot1Payload(void)
     //     return;
     // }
 
+    // TODO verify that this is actually a valid ancast image, maybe do that before writing it to MEM1 actually
+    //      read ancast header first and then the rest
+
     // read and write payload to mem1
     uint32_t payloadOffset = 0x00000050;
     int bytesRead = 0;
     while ((res = FSA_ReadFile(fsaHandle, dataBuffer, 1, 0x40, fileHandle, 0)) > 0) {
         bytesRead += res;
         for (int i = 0; i < res; i += 4) {
-            kernWrite32(payloadOffset, dataBuffer[i]);
+            kernWrite32(payloadOffset, dataBuffer[i/4]);
             payloadOffset += 4;
         }
     }
@@ -1062,8 +1065,9 @@ static void option_LoadBoot1Payload(void)
         return;
     }
 
-    // Setup branch to MEM1 payload (skip ancast + loader header)
+    // Setup branch to MEM1 payload (skip ancast + loader header) TODO we probably won't have to skip the loader header, boot1 usually doesn't come with one
     kernWrite32(0x00000000, 0xEA000096); // b #0x260
+    //kernWrite32(0x00000000, 0xEA000012); // b #0x50
     kernWrite32(0x00000004, 0xDEADC0DE);
     kernWrite32(0x00000008, 0xDEADC0DE);
 
