@@ -1045,7 +1045,6 @@ static void option_LoadBoot1Payload(void)
     }
 
     gfx_printf(16, index, 0, "Read %d bytes", bytesRead);
-    waitButtonInput();
 
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
     FSA_CloseFile(fsaHandle, fileHandle);
