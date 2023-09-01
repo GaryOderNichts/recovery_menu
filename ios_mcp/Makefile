@@ -33,7 +33,7 @@ MACHDEP = -DSTARBUCK -mbig-endian -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft
 #---------------------------------------------------------------------------------
 TARGET		:= $(notdir $(CURDIR))
 BUILD		:= build
-SOURCES		:= source source/minilzo
+SOURCES		:= source source/minilzo source/options
 DATA		:= data
 INCLUDES	:= source
 
