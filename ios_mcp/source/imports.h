@@ -77,15 +77,32 @@ int UCReadSysConfig(int handle, uint32_t num, UCSysConfig_t* configs);
 int UCClose(int handle);
 int UCOpen(void);
 
-int IOS_CreateThread(int (*fun)(void* arg), void* arg, void* stack_top, uint32_t stacksize, int priority, uint32_t flags);
+typedef enum {
+    IOS_THREAD_FLAGS_NONE     = 0,
+    IOS_THREAD_FLAGS_DETACHED = 1 << 0,
+    IOS_THREAD_FLAGS_TLS      = 1 << 1,
+} IOS_ThreadFlags;
+
+int IOS_CreateThread(int (*fun)(void* arg), void* arg, void* stack_top, uint32_t stacksize, int priority, IOS_ThreadFlags flags);
 int IOS_JoinThread(int threadid, int* retval);
 int IOS_CancelThread(int threadid, int return_value);
 int IOS_StartThread(int threadid);
 int IOS_GetThreadPriority(int threadid);
 
+typedef enum {
+    IOS_MESSAGE_FLAGS_NONE          = 0,
+    IOS_MESSAGE_FLAGS_NON_BLOCKING  = 1 << 0,
+} IOS_MessageFlags;
+
 int IOS_CreateMessageQueue(uint32_t* ptr, uint32_t n_msgs);
 int IOS_DestroyMessageQueue(int queueid);
-int IOS_ReceiveMessage(int queueid, uint32_t* message, uint32_t flags);
+int IOS_SendMessage(int queueid, uint32_t message, IOS_MessageFlags flags);
+int IOS_ReceiveMessage(int queueid, uint32_t* message, IOS_MessageFlags flags);
+
+int IOS_CreateTimer(uint32_t delay, uint32_t period, int queueid, uint32_t message);
+int IOS_RestartTimer(int timerid, uint32_t delay, uint32_t period);
+int IOS_StopTimer(int timerid);
+int IOS_DestroyTimer(int timerid);
 
 int IOS_CheckDebugMode(void);
 int IOS_ReadOTP(int index, void* buffer, uint32_t size);

@@ -28,7 +28,13 @@ PROVIDE(IOS_GetThreadPriority = 0x0505683c);
 
 PROVIDE(IOS_CreateMessageQueue = 0x0505684c);
 PROVIDE(IOS_DestroyMessageQueue = 0x05056854);
+PROVIDE(IOS_SendMessage = 0x0505685c);
 PROVIDE(IOS_ReceiveMessage = 0x0505686c);
+
+PROVIDE(IOS_CreateTimer = 0x05056884);
+PROVIDE(IOS_RestartTimer = 0x0505688c);
+PROVIDE(IOS_StopTimer = 0x05056894);
+PROVIDE(IOS_DestroyTimer = 0x0505689c);
 
 PROVIDE(IOS_CheckDebugMode = 0x050568ec);
 PROVIDE(IOS_ReadOTP = 0x050568fc);

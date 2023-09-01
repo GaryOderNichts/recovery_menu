@@ -184,7 +184,7 @@ void wupserver_init(void)
     if (!serverRunning) {
         serverSocket = -1;
 
-        threadId = IOS_CreateThread(wupserver_thread, NULL, threadStack + sizeof(threadStack), sizeof(threadStack), IOS_GetThreadPriority(0), 0);
+        threadId = IOS_CreateThread(wupserver_thread, NULL, threadStack + sizeof(threadStack), sizeof(threadStack), IOS_GetThreadPriority(0), IOS_THREAD_FLAGS_NONE);
         if(threadId >= 0) {
             IOS_StartThread(threadId);
             serverRunning = 1;
