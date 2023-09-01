@@ -326,6 +326,9 @@ static void option_Shutdown(void)
         IOS_Close(fsaHandle);
     }
 
+    // Finalize utils (doesn't really matter at this point since we don't have a clean shutdown anyways)
+    //finalizeUtils();
+
     IOS_Shutdown(0);
 }
 
@@ -334,7 +337,7 @@ int menuThread(void* arg)
     printf("menuThread running\n");
 
     // set LED to purple-orange blinking
-    SMC_SetNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE);
+    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE, 0);
 
     // stop ppcHeartbeatThread and reset PPC
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
@@ -342,6 +345,9 @@ int menuThread(void* arg)
 
     // cut power to the disc drive to not eject a disc every eject press
     SMC_SetODDPower(0);
+
+    // Initialize utils
+    initializeUtils();
 
 #ifdef DC_INIT
     // (re-)init the graphics subsystem
@@ -380,7 +386,7 @@ int menuThread(void* arg)
     }
 
     // set LED to purple
-    SMC_SetNotificationLED(NOTIF_LED_RED | NOTIF_LED_BLUE);
+    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_BLUE, 0);
 
     int selected = 0;
     while (1) {

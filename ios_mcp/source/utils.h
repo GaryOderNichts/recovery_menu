@@ -51,6 +51,10 @@ enum {
     NOTIF_LED_BLUE              = 1 << 5,
 };
 
+int initializeUtils(void);
+
+int finalizeUtils(void);
+
 uint32_t kernRead32(uint32_t address);
 
 void kernWrite32(uint32_t address, uint32_t value);
@@ -69,6 +73,6 @@ int DISPLAY_ReadDCConfig(DC_Config* config);
 
 int SMC_ReadSystemEventFlag(uint8_t* flag);
 
-int SMC_SetNotificationLED(uint8_t mask);
-
 int SMC_SetODDPower(int power);
+
+void setNotificationLED(uint8_t mask, uint32_t duration);

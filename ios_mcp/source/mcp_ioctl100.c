@@ -10,7 +10,7 @@ int MCP_ioctl100_patch(void* msg)
 
     // start the menu thread
     if (!threadStarted) {
-        int tid = IOS_CreateThread(menuThread, NULL, threadStack + sizeof(threadStack), sizeof(threadStack), IOS_GetThreadPriority(0), 1);
+        int tid = IOS_CreateThread(menuThread, NULL, threadStack + sizeof(threadStack), sizeof(threadStack), IOS_GetThreadPriority(0), IOS_THREAD_FLAGS_DETACHED);
         if (tid > 0) {
             IOS_StartThread(tid);
         }
