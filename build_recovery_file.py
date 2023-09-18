@@ -1,51 +1,83 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 import sys, struct
 
-RECOVERY_HEADER_SIZE = 0xec
+class RecoverySection:
+    data: bytes
+    vaddr: int
+    paddr: int
+    offset: int
 
-def defSection(vaddr, paddr, size, offset):
-    return struct.pack('>IIII', vaddr, paddr, size, offset)
+    def __init__(self, file: str, vaddr: int, paddr: int) -> None:
+        self.vaddr = vaddr
+        self.paddr = paddr
+        with open(file, 'rb') as f:
+            self.data = f.read()
+
+    def pack(self) -> bytes:
+        return struct.pack('>IIII', self.vaddr, self.paddr, len(self.data), self.offset)
+
+class RecoveryFile:
+    MAX_RECOVERY_SECTIONS = 14
+    RECOVERY_HEADER_SIZE = 0xec
+
+    entry: int
+    sections: list[RecoverySection]
+    cur_offset: int
+
+    def __init__(self, entry: int) -> None:
+        self.entry = entry
+        self.sections = []
+        self.cur_offset = self.RECOVERY_HEADER_SIZE
+
+    def add_section(self, section: RecoverySection) -> None:
+        if len(self.sections) >= self.MAX_RECOVERY_SECTIONS:
+            raise RuntimeError('too many sections')
+
+        # set and increase section offset
+        section.offset = self.cur_offset
+        self.cur_offset += len(section.data)
+
+        self.sections.append(section)
+
+    def pack(self) -> bytes:
+        packed = b''
+
+        # magic
+        packed += b'REC\0'
+
+        # entrypoint and numSections
+        packed += struct.pack('>II', self.entry, len(self.sections))
+
+        # append section headers
+        for s in self.sections:
+            packed += s.pack()
+
+        # pad the rest of the section structs
+        for _ in range(self.MAX_RECOVERY_SECTIONS - len(self.sections)):
+            packed += struct.pack('>IIII', 0, 0, 0, 0)
+
+        # append section data
+        for s in self.sections:
+            packed += s.data
+
+        return packed
 
 def main(argc, argv):
     if argc != 2:
         sys.exit(-1)
 
-    # magic
-    data = b'REC\0'
+    # create new recovery file
+    file = RecoveryFile(0x08136000)
 
-    # entrypoint and numSections
-    data += struct.pack('>II', 0x08136000, 2)
-
-    # read kernel binary
-    kernel_bin = b''
-    with open("ios_kernel/ios_kernel.bin", "rb") as f:
-        kernel_bin += f.read()
-
-    # kernel section
-    data += defSection(0x08136000, 0x08136000, len(kernel_bin), RECOVERY_HEADER_SIZE)
-
-    # read mcp binary
-    mcp_bin = b''
-    with open("ios_mcp/ios_mcp.bin", "rb") as f:
-        mcp_bin += f.read()
-
-    # mcp section
-    data += defSection(0x05116000, 0x05116000 - 0x05100000 + 0x13d80000, len(mcp_bin), RECOVERY_HEADER_SIZE + len(kernel_bin))
-
-    # pad the rest of the section structs
-    for i in range(12):
-        data += defSection(0, 0, 0, 0)
-
-    # append kernel binary
-    data += kernel_bin
-
-    # append mcp binary
-    data += mcp_bin
+    # add sections
+    file.add_section(RecoverySection('ios_kernel/ios_kernel.bin', 0x08136000, 0x08136000))
+    file.add_section(RecoverySection('ios_mcp/ios_mcp.bin', 0x05116000, 0x05116000 - 0x05100000 + 0x13d80000))
 
     # write file
     with open(argv[1], 'wb') as f:
-        f.write(data)
+        f.write(file.pack())
 
 if __name__ == '__main__':
     main(len(sys.argv), sys.argv)
