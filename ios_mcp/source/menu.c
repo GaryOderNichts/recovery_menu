@@ -48,6 +48,7 @@ static const Menu mainMenuOptions[] = {
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
     {"System Information",          {.callback = option_SystemInformation}},
     {"Submit System Data",          {.callback = option_SubmitSystemData}},
+    {"Show EXT_CSD",                {.callback = option_ShowExtCsd}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
 

@@ -3,6 +3,7 @@
 #include "lolserial.h"
 #include "bsp.h"
 #include "../../ios_mcp/ios_mcp_syms.h"
+#include "../../ios_fs/ios_fs_syms.h"
 
 extern char __kernel_bss_start;
 extern char __kernel_bss_end;
@@ -33,12 +34,17 @@ int _main(void* arg)
 {
     lolserial_printf("Hello world from recovery_menu. Running from '%s'.\n", arg);
 
+    // set LED to purple-off blinking
+    uint8_t ledMask = 0x3c; // NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING
+    bspWrite("SMC", 0, "NotificationLED", 1, &ledMask);
+
     int level = disable_interrupts();
     uint32_t control_register = disable_mmu();
 
     // clear all bss
     memset(&__kernel_bss_start, 0, &__kernel_bss_end - &__kernel_bss_start);
     memset((void*) (__mcp_bss_start - 0x05074000 + 0x08234000), 0, __mcp_bss_end - __mcp_bss_start);
+    memset((void*) __fs_bss_start, 0, __fs_bss_end - __fs_bss_start);
 
     // map the mcp sections
     ios_map_shared_info_t map_info;
@@ -54,6 +60,23 @@ int _main(void* arg)
     map_info.vaddr  = 0x05116000;
     map_info.size   = 0xa000;
     map_info.domain = 1; // MCP
+    map_info.type   = 3;
+    map_info.cached = 0xffffffff;
+    _iosMapSharedUserExecution(&map_info);
+
+    // map the fs sections
+    map_info.paddr  = 0x107f9000;
+    map_info.vaddr  = 0x107f9000;
+    map_info.size   = 0x7000;
+    map_info.domain = 5; // FS
+    map_info.type   = 3;
+    map_info.cached = 0xffffffff;
+    _iosMapSharedUserExecution(&map_info);
+
+    map_info.paddr  = 0x11c3c000;
+    map_info.vaddr  = 0x11c3c000;
+    map_info.size   = 0x10000; // we can probably get up to 0x2c4000 here, but let's just stick with this for now
+    map_info.domain = 5; // FS
     map_info.type   = 3;
     map_info.cached = 0xffffffff;
     _iosMapSharedUserExecution(&map_info);
@@ -76,6 +99,10 @@ int _main(void* arg)
     // nop out odm log to not spam logs when stopping drive
     *(volatile uint32_t*) 0x1073880c = 0xe12fff1e; // bx lr
 
+    // add /dev/fsa hooks
+    *(volatile uint32_t*) 0x107044f0 = ARM_BL(0x107044f0, FSA_HandleIoctl_hook);
+    *(volatile uint32_t*) 0x10704540 = ARM_BL(0x10704540, FSA_HandleIoctlv_hook);
+
     restore_mmu(control_register);
 
     // invalidate all cache
@@ -83,10 +110,6 @@ int _main(void* arg)
     invalidate_icache();
 
     enable_interrupts(level);
-
-    // set LED to purple-off blinking
-    uint8_t ledMask = 0x3c; // NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING
-    bspWrite("SMC", 0, "NotificationLED", 1, &ledMask);
 
     // give the current thread full access to MCP for starting the thread
     setClientCapabilities(currentThreadContext->pid, 0xd, 0xffffffffffffffffllu);

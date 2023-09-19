@@ -8,6 +8,7 @@
 #include "LoadNetConf.h"
 #include "PairDRC.h"
 #include "SetColdbootTitle.h"
+#include "ShowExtCsd.h"
 #include "StartWupserver.h"
 #include "SubmitSystemData.h"
 #include "SystemInformation.h"

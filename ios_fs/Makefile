@@ -33,7 +33,7 @@ MACHDEP = -DSTARBUCK -mbig-endian -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft
 #---------------------------------------------------------------------------------
 TARGET		:= $(notdir $(CURDIR))
 BUILD		:= build
-SOURCES		:= source source/minilzo source/options
+SOURCES		:= source
 DATA		:= data
 INCLUDES	:= source
 
@@ -42,7 +42,6 @@ INCLUDES	:= source
 #---------------------------------------------------------------------------------
 CFLAGS	:= -Wall -Werror=implicit-function-declaration -Werror=int-conversion -std=gnu11 -Os \
 	-flto -fno-tree-loop-distribute-patterns -fno-builtin \
-	-DNDEBUG -DMINILZO_CFG_SKIP_LZO1X_1_COMPRESS \
 	$(MACHDEP) $(INCLUDE)
 
 ASFLAGS	:= $(MACHDEP)
@@ -51,10 +50,6 @@ LDFLAGS := -nostartfiles -nodefaultlibs -mbig-endian -flto \
 	-Wl,-L $(TOPDIR) -Wl,-Map,$(notdir $*.map),-T $(TOPDIR)/link.ld
 
 LIBS	:= -lgcc
-
-ifeq ($(DC_INIT), 1)
-	CFLAGS += -DDC_INIT
-endif
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level

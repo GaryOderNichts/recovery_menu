@@ -73,6 +73,7 @@ def main(argc, argv):
     # add sections
     file.add_section(RecoverySection('ios_kernel/ios_kernel.bin', 0x08136000, 0x08136000))
     file.add_section(RecoverySection('ios_mcp/ios_mcp.bin', 0x05116000, 0x05116000 - 0x05100000 + 0x13d80000))
+    file.add_section(RecoverySection('ios_fs/ios_fs.bin', 0x107f9000, 0x107f9000))
 
     # write file
     with open(argv[1], 'wb') as f:
