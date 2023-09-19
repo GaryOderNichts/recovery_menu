@@ -16,7 +16,7 @@ static uint8_t asyncThreadStack[0x400] __attribute__((aligned(0x20)));
 static uint32_t asyncMessageQueueBuf[0x20];
 static int asyncMessageQueue = -1;
 static int ledTimer = -1;
-static uint8_t currentLedMask = NOTIF_LED_RED | NOTIF_LED_BLUE;
+static uint8_t currentLedMask = NOTIF_LED_PURPLE;
 
 static int SMC_SetNotificationLED(uint8_t mask);
 
