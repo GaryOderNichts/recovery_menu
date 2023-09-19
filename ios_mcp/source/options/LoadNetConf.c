@@ -78,9 +78,7 @@ void option_LoadNetConf(void)
 
     int res = netconf_init();
     if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to initialize netconf: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to initialize netconf: %x", res);
         return;
     }
 
@@ -90,30 +88,22 @@ void option_LoadNetConf(void)
     int cfgHandle;
     res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/network.cfg", "r", &cfgHandle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to open network.cfg: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to open network.cfg: %x", res);
         return;
     }
 
     FSStat stat;
     res = FSA_StatFile(fsaHandle, cfgHandle, &stat);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to stat file: %x", res);
-        waitButtonInput();
-
         FSA_CloseFile(fsaHandle, cfgHandle);
+        printf_error(index, "Failed to stat file: %x", res);
         return;
     }
 
     char* cfgBuffer = (char*) IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, stat.size + 1, 0x40);
     if (!cfgBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        waitButtonInput();
-
         FSA_CloseFile(fsaHandle, cfgHandle);
+        print_error(index, "Out of memory!");
         return;
     }
 
@@ -121,12 +111,9 @@ void option_LoadNetConf(void)
 
     res = FSA_ReadFile(fsaHandle, cfgBuffer, 1, stat.size, cfgHandle, 0);
     if (res != stat.size) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read file: %x", res);
-        waitButtonInput();
-
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
         FSA_CloseFile(fsaHandle, cfgHandle);
+        printf_error(index, "Failed to read file: %x", res);
         return;
     }
 
@@ -166,12 +153,9 @@ void option_LoadNetConf(void)
 
     res = netconf_set_running(&cfg);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to apply configuration: %x", res);
-        waitButtonInput();
-
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, cfgBuffer);
         FSA_CloseFile(fsaHandle, cfgHandle);
+        printf_error(index, "Failed to apply configuration: %x", res);
         return;
     }
 

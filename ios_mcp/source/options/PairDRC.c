@@ -20,6 +20,7 @@
 #include "ccr.h"
 #include "gfx.h"
 #include "menu.h"
+#include "utils.h"
 
 #include <stdint.h>
 #include <unistd.h>
@@ -31,15 +32,13 @@ void option_PairDRC(void)
 {
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("Pairing Gamepad...");
+    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
 
     uint32_t index = 16 + 8 + 2 + 8;
 
     int res = CCRCDCSetup();
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "CCRCDCSetup() failed: %x", res);
-
-        waitButtonInput();
+        printf_error(index, "CCRCDCSetup() failed: %x", res);
         return;
     }
 
@@ -49,10 +48,7 @@ void option_PairDRC(void)
     uint8_t pincode[4];
     res = CCRSysGetPincode(pincode);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get pincode: %x", res);
-
-        waitButtonInput();
+        printf_error(index, "Failed to get pincode: %x", res);
         return;
     }
 
@@ -93,10 +89,7 @@ void option_PairDRC(void)
 
     res = CCRSysStartPairing(CCR_DEST_DRC0, timeout, pincode);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to start pairing: %x", res);
-
-        waitButtonInput();
+        printf_error(index, "Failed to start pairing: %x", res);
         return;
     }
 
@@ -104,12 +97,8 @@ void option_PairDRC(void)
     while (timeout--) {
         res = CCRCDCWpsStatus(&status);
         if (res < 0) {
-            gfx_set_font_color(COLOR_ERROR);
-            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to get status: %x", res);
-
             CCRCDCWpsStop();
-
-            waitButtonInput();
+            printf_error(index, "Failed to get status: %x", res);
             return;
         }
 
@@ -130,14 +119,13 @@ void option_PairDRC(void)
     }
 
     if (status != 0 || timeout <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Failed to pair GamePad: %lx", status);
-
         CCRCDCWpsStop();
-    } else {
-        gfx_set_font_color(COLOR_SUCCESS);
-        gfx_print(16, index, GfxPrintFlag_ClearBG, "Paired GamePad");
+        printf_error(index, "Failed to pair GamePad: %lx", res);
+        return;
     }
 
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
+    gfx_set_font_color(COLOR_SUCCESS);
+    gfx_print(16, index, GfxPrintFlag_ClearBG, "Paired GamePad");
     waitButtonInput();
 }
