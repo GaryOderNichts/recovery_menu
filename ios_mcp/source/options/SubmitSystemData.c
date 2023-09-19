@@ -203,9 +203,7 @@ void option_SubmitSystemData(void)
 #define DATA_BUFFER_SIZE 0xA00
     uint8_t* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, DATA_BUFFER_SIZE, 0x40);
     if (!dataBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        waitButtonInput();
+        print_error(index, "Out of memory!");
         return;
     }
     if (read_otp_seeprom(dataBuffer, index) != 0) {
@@ -337,28 +335,22 @@ void option_SubmitSystemData(void)
     uint8_t aes128_key[16];
     res = IOSC_GenerateRand(aes128_key, sizeof(aes128_key));
     if (res != 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "IOSC_GenerateRand() failed: %d", res);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "IOSC_GenerateRand() failed: %d", res);
         return;
     }
     uint8_t* const encKey = (uint8_t*)dataBuffer + 0x600;
     res = rsa2048_encrypt_aes128_key(encKey, RSA2048_BUF_SIZE, aes128_key, sizeof(aes128_key));
     if (res != 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "rsa2048_encrypt_aes128_key() failed: %d", res);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "rsa2048_encrypt_aes128_key() failed: %d", res);
         return;
     }
     IOSCSecretKeyHandle aesHandle;
     res = IOSC_CreateObject(&aesHandle, 0, 0);  // IOSU uses 0,0 for AES
     if (res != 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "IOSC_CreateObject() failed: %d", res);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "IOSC_CreateObject() failed: %d", res);
         return;
     }
 
@@ -369,22 +361,18 @@ void option_SubmitSystemData(void)
     memset(iv, 0, sizeof(iv));
     res = IOSC_ImportSecretKey(aesHandle, 0, 0, 0, NULL, 0, iv, sizeof(iv), aes128_key, sizeof(aes128_key));
     if (res != 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "IOSC_ImportSecretKey() failed: %d", res);
         IOSC_DeleteObject(aesHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "IOSC_ImportSecretKey() failed: %d", res);
         return;
     }
 
     // Encrypt the POST data using AES-128.
     res = IOSC_Encrypt(aesHandle, iv, sizeof(iv), (uint8_t*)pdh, sizeof(*pdh), (uint8_t*)pdh, sizeof(*pdh));
     if (res != 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "IOSC_Encrypt() failed: %d", res);
         IOSC_DeleteObject(aesHandle);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "IOSC_Encrypt() failed: %d", res);
         return;
     }
     IOSC_DeleteObject(aesHandle);
@@ -394,26 +382,22 @@ void option_SubmitSystemData(void)
     if (res != 0) {
         // An error occurred while initializing netconf.
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "Failed to initialize netconf: %d", res);
         return;
     }
 
     int httpSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (httpSocket < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "socket() failed: %d", httpSocket);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "socket() failed: %d", httpSocket);
         return;
     }
 
     // Look up the domain name.
     struct hostent* h = gethostbyname(SYSDATA_HOST_NAME);
     if (!h || !h->h_addr) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "gethostbyname() failed; is your DNS server working?");
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        print_error(index, "gethostbyname() failed; is your DNS server working?");
         return;
     }
 
@@ -426,11 +410,9 @@ void option_SubmitSystemData(void)
 
     res = connect(httpSocket, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "connect() failed: %d", res);
         closesocket(httpSocket);
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        printf_error(index, "connect() failed: %d", res);
         return;
     }
 
@@ -461,10 +443,8 @@ void option_SubmitSystemData(void)
         ok = true;
     } while (0);
     if (!ok) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(status_xpos, index, 0, "Failed to send HTTP request.");
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-        waitButtonInput();
+        print_error(index, "Failed to send HTTP request.");
         return;
     }
 

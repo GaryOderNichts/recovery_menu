@@ -82,9 +82,7 @@ void option_SystemInformation(void)
     // 0x600-0x7FF: misc for version.bin
     void *dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x800, 0x40);
     if (!dataBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(x_pos, y_pos, 0, "Out of memory!");
-        waitButtonInput();
+        print_error(y_pos, "Out of memory!");
         return;
     }
     if (read_otp_seeprom(dataBuffer, y_pos) != 0) {
@@ -258,9 +256,7 @@ void option_SystemInformation(void)
     // Read info about IOS-FS' memory devices
     res = MDReadInfo();
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(x_pos, y_pos, 0, "Failed to read memory device info: %x", res);
-        waitButtonInput();
+        printf_error(y_pos, "Failed to read memory device info: %x", res);
         return;
     }
 

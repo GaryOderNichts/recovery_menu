@@ -25,6 +25,7 @@
 #include "netconf.h"
 #include "mcp_misc.h"
 
+#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -209,6 +210,28 @@ void waitButtonInput(void)
     }
 }
 
+void print_error(int index, const char *msg)
+{
+    gfx_set_font_color(COLOR_ERROR);
+    gfx_print(16, index, GfxPrintFlag_ClearBG, msg);
+    setNotificationLED(NOTIF_LED_RED, 0);
+    waitButtonInput();
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
+}
+
+void printf_error(int index, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    char buffer[0x100];
+
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    print_error(index, buffer);
+}
+
 /**
  * Initialize the network configuration.
  * @param index [in/out] Starting (and ending) Y position.
@@ -221,9 +244,7 @@ int initNetconf(uint32_t* index)
 
     int res = netconf_init();
     if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, *index, 0, "Failed to initialize netconf: %x", res);
-        waitButtonInput();
+        printf_error(*index, "Failed to initialize netconf: %x", res);
         return res;
     }
 
@@ -248,9 +269,7 @@ int initNetconf(uint32_t* index)
     *index += CHAR_SIZE_DRC_Y;
 
     if (interface == 0xff) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, *index, 0, "No network connection!");
-        waitButtonInput();
+        print_error(*index, "No network connection!");
         return 1;
     }
 
@@ -260,9 +279,7 @@ int initNetconf(uint32_t* index)
     uint8_t ip_address[4];
     res = netconf_get_assigned_address(interface, (uint32_t*) ip_address);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, *index, 0, "Failed to get IP address: %x", res);
-        waitButtonInput();
+        printf_error(*index, "Failed to get IP address: %x", res);
         return res;
     }
 
@@ -272,9 +289,7 @@ int initNetconf(uint32_t* index)
 
     res = socketInit();
     if (res <= 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, *index, 0, "Failed to initialize socketlib: %x", res);
-        waitButtonInput();
+        printf_error(*index, "Failed to initialize socketlib: %x", res);
         return res;
     }
 

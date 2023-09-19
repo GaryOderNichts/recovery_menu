@@ -41,17 +41,13 @@ int read_otp_seeprom(void *buf, int index)
 
     int res = IOS_ReadOTP(0, otp, 0x400);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to read OTP: %x", res);
         return res;
     }
 
     res = EEPROM_Read(0, 0x100, seeprom);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to read EEPROM: %x", res);
         return res;
     }
 
@@ -82,20 +78,16 @@ static int write_file_to_sd(uint32_t *index, int fsaHandle, const char *filename
     int fileHandle;
     int res = FSA_OpenFile(fsaHandle, path, "w", &fileHandle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, *index, 0, "Failed to create %s: %x", filename, res);
+        printf_error(*index, "Failed to create %s: %x", filename, res);
         *index += CHAR_SIZE_DRC_Y + 4;
-        waitButtonInput();
         return res;
     }
 
     res = FSA_WriteFile(fsaHandle, buf, 1, size, fileHandle, 0);
     FSA_CloseFile(fsaHandle, fileHandle);
     if (res != size) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, *index, 0, "Failed to write %s: %x", filename, res);
+        printf_error(*index, "Failed to write %s: %x", filename, res);
         *index += CHAR_SIZE_DRC_Y + 4;
-        waitButtonInput();
         return res;
     }
 
@@ -106,13 +98,12 @@ void option_DumpOtpAndSeeprom(void)
 {
     gfx_clear(COLOR_BACKGROUND);
     drawTopBar("Dumping OTP + SEEPROM...");
+    setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
     uint32_t index = 16 + 8 + 2 + 8;
 
     void* dataBuffer = IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x400, 0x40);
     if (!dataBuffer) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_print(16, index, 0, "Out of memory!");
-        waitButtonInput();
+        print_error(index, "Out of memory!");
         return;
     }
 
@@ -123,11 +114,8 @@ void option_DumpOtpAndSeeprom(void)
 
     int res = IOS_ReadOTP(0, dataBuffer, 0x400);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read OTP: %x", res);
-        waitButtonInput();
-
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        printf_error(index, "Failed to read OTP: %x", res);
         return;
     }
 
@@ -144,11 +132,8 @@ void option_DumpOtpAndSeeprom(void)
 
     res = EEPROM_Read(0, 0x100, (uint16_t*) dataBuffer);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to read EEPROM: %x", res);
-        waitButtonInput();
-
         IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        printf_error(index, "Failed to read EEPROM: %x", res);
         return;
     }
 
@@ -160,6 +145,7 @@ void option_DumpOtpAndSeeprom(void)
 
     /** All done! **/
 
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
     gfx_set_font_color(COLOR_SUCCESS);
     gfx_print(16, index, 0, "Done!");
     waitButtonInput();

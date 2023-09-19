@@ -37,9 +37,7 @@ void option_DebugSystemRegion(void)
     int productArea_id, gameRegion;
     int res = getRegionInfo(&productArea_id, &gameRegion);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "Failed to get the system region code: %x", res);
-        waitButtonInput();
+        printf_error(index, "Failed to get the system region code: %x", res);
         return;
     }
 
@@ -125,17 +123,17 @@ void option_DebugSystemRegion(void)
     }
 
     // Show the errors.
-    gfx_set_font_color(COLOR_ERROR);
     if (menu_count == 0 || menu_productArea_id < 0) {
-        gfx_print(16, index, 0, "Could not find a Wii U Menu title installed on this system.");
-        waitButtonInput();
-        return;
-    } else if (menu_count > 1) {
-        gfx_print(16, index, 0, "Multiple Wii U Menus were found. Someone dun goofed...");
-        waitButtonInput();
+        print_error(index, "Could not find a Wii U Menu title installed on this system.");
         return;
     }
 
+    if (menu_count > 1) {
+        print_error(index, "Multiple Wii U Menus were found. Someone dun goofed...");
+        return;
+    }
+
+    gfx_set_font_color(COLOR_ERROR);
     if (!menu_matches_region) {
         gfx_printf(16, index, 0, "The %s region does not match the installed Wii U Menu.", "system");
         index += CHAR_SIZE_DRC_Y + 4;
@@ -164,9 +162,7 @@ void option_DebugSystemRegion(void)
     // Attempt to set the region code.
     int mcpHandle = IOS_Open("/dev/mcp", 0);
     if (mcpHandle < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "IOS_Open(\"/dev/mcp\") failed: %x", mcpHandle);
-        waitButtonInput();
+        printf_error(index, "IOS_Open(\"/dev/mcp\") failed: %x", mcpHandle);
         return;
     }
 
@@ -174,9 +170,7 @@ void option_DebugSystemRegion(void)
     res = MCP_GetSysProdSettings(mcpHandle, &sysProdSettings);
     if (res < 0) {
         IOS_Close(mcpHandle);
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_GetSysProdSettings() failed: %x", res);
-        waitButtonInput();
+        printf_error(index, "MCP_GetSysProdSettings() failed: %x", res);
         return;
     }
 
@@ -187,12 +181,11 @@ void option_DebugSystemRegion(void)
     res = MCP_SetSysProdSettings(mcpHandle, &sysProdSettings);
     IOS_Close(mcpHandle);
     if (res < 0) {
-        gfx_set_font_color(COLOR_ERROR);
-        gfx_printf(16, index, 0, "MCP_SetSysProdSettings() failed: %x", res);
-    } else {
-        gfx_set_font_color(COLOR_SUCCESS);
-        gfx_printf(16, index, 0, "System region set to %s successfully.", menu_region_str);
+        printf_error(index, "MCP_SetSysProdSettings() failed: %x", res);
+        return;
     }
 
+    gfx_set_font_color(COLOR_SUCCESS);
+    gfx_printf(16, index, 0, "System region set to %s successfully.", menu_region_str);
     waitButtonInput();
 }
