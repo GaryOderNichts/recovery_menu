@@ -337,7 +337,7 @@ int menuThread(void* arg)
     printf("menuThread running\n");
 
     // set LED to purple-orange blinking
-    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_RED_BLINKING | NOTIF_LED_BLUE | NOTIF_LED_BLUE_BLINKING | NOTIF_LED_ORANGE, 0);
+    setNotificationLED(NOTIF_LED_PURPLE_BLINKING | NOTIF_LED_ORANGE, 0);
 
     // stop ppcHeartbeatThread and reset PPC
     IOS_CancelThread(ppcHeartBeatThreadId, 0);
@@ -386,7 +386,7 @@ int menuThread(void* arg)
     }
 
     // set LED to purple
-    setNotificationLED(NOTIF_LED_RED | NOTIF_LED_BLUE, 0);
+    setNotificationLED(NOTIF_LED_PURPLE, 0);
 
     int selected = 0;
     while (1) {
