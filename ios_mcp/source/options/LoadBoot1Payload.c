@@ -11,17 +11,17 @@
 static int preparePrshHax(void)
 {
     // RAM vars
-    uint32_t ram_start_addr    = 0x10000000;
+    uint32_t ram_start_addr = 0x10000000;
     uint32_t ram_test_buf_size = 0x400;
 
     // PRSH vars
     uint32_t prsh_hdr_offset = ram_start_addr + ram_test_buf_size + 0x5654;
-    uint32_t prsh_hdr_size   = 0x1C;
+    uint32_t prsh_hdr_size = 0x1C;
 
     // boot_info vars
     uint32_t boot_info_name_addr = prsh_hdr_offset + prsh_hdr_size;
     uint32_t boot_info_name_size = 0x100;
-    uint32_t boot_info_ptr_addr  = boot_info_name_addr + boot_info_name_size;
+    uint32_t boot_info_ptr_addr = boot_info_name_addr + boot_info_name_size;
 
     // Calculate PRSH checksum
     uint32_t checksum_old = 0;
@@ -67,6 +67,72 @@ static int preparePrshHax(void)
     return res;
 }
 
+typedef struct {
+    uint16_t version;
+    uint16_t sector;
+    uint16_t reserved[4];
+    uint32_t crc;
+} Boot1Params;
+Boot1Params boot1Params[2] __attribute__ ((aligned (0x10)));
+
+static int decryptBoot1Params(int index)
+{
+    uint8_t iv[0x10];
+    memset(iv, 0, sizeof(iv));
+
+    Boot1Params* params = &boot1Params[index];
+    IOS_FlushDCache(params, sizeof(*params));
+    return IOSC_Decrypt(0x7, iv, sizeof(iv), params, sizeof(*params), params, sizeof(*params));
+}
+
+static int readBoot1Params(void)
+{
+    int ret;
+
+    ret = EEPROM_Read(0xe8, 8, &boot1Params[0]);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = EEPROM_Read(0xf0, 8, &boot1Params[1]);
+    if (ret != 0) {
+        return ret;
+    }
+        
+    decryptBoot1Params(0);
+    decryptBoot1Params(1);
+    return 1;
+}
+
+static int determineActiveBoot1Slot(void)
+{
+    int activeSlot;
+
+    // Calculate crcs
+    uint32_t validMask = 0;
+    for (int i = 0; i < 2; i++) {
+        if (crc32(0xffffffff, &boot1Params[i], 0xc) == boot1Params[i].crc) {
+            validMask |= 1 << i;
+        }
+    }
+
+    if (validMask == 0b01) {
+        activeSlot = 0;
+    } else if (validMask == 0b10) {
+        activeSlot = 1;
+    } else if (validMask == 0b11) {
+        // Both versions are valid, check for newer version
+        activeSlot = 0;
+        if (boot1Params[1].version > boot1Params[0].version) {
+            activeSlot = 1;
+        }
+    } else {
+        activeSlot = -1;
+    }
+
+    return activeSlot;
+}
+
 void option_LoadBoot1Payload(void)
 {
     static const Menu boot1ControlOptions[] = {
@@ -91,6 +157,26 @@ void option_LoadBoot1Payload(void)
     if (selected == 0)
         return;
 
+    gfx_printf(16, index, 0, "Checking BOOT1 version...");
+
+    int activeSlot;
+    if (readBoot1Params() != 1 || (activeSlot = determineActiveBoot1Slot()) < 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to determine boot1 version");
+        waitButtonInput();
+        return;
+    }
+
+    uint16_t activeVersion = boot1Params[activeSlot].version;
+
+    // TODO we could probably support more versions
+    if (activeVersion != 8377) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Unsupported BOOT1 version: %d", activeVersion);
+        waitButtonInput();
+        return;
+    }
+
     int fileHandle;
     int res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/boot1.img", "r", &fileHandle);
     if (res < 0) {
@@ -100,7 +186,7 @@ void option_LoadBoot1Payload(void)
         return;
     }
 
-    uint32_t* dataBuffer = (uint32_t*) IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x40, 0x40);
+    uint32_t* dataBuffer = (uint32_t*) IOS_HeapAllocAligned(CROSS_PROCESS_HEAP_ID, 0x200, 0x40);
     if (!dataBuffer) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to allocate data buffer!");
@@ -109,19 +195,36 @@ void option_LoadBoot1Payload(void)
         return;
     }
 
-    // // skip the ancast header
-    // res = FSA_SetPosFile(fsaHandle, fileHandle, 0x200);
-    // if (res < 0) {
-    //     gfx_set_font_color(COLOR_ERROR);
-    //     gfx_printf(16, index, 0, "Failed to set boot1.img pos: %x", res);
-    //     waitButtonInput();
-    //     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
-    //     FSA_CloseFile(fsaHandle, fileHandle);
-    //     return;
-    // }
+    // read the ancast header
+    res = FSA_ReadFile(fsaHandle, dataBuffer, 1, 0x200, fileHandle, 0);
+    if (res != 0x200) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read ancast header: %x", res);
+        waitButtonInput();
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        FSA_CloseFile(fsaHandle, fileHandle);
+        return;
+    }
 
-    // TODO verify that this is actually a valid ancast image, maybe do that before writing it to MEM1 actually
-    //      read ancast header first and then the rest
+    // Check ancast magic
+    if (dataBuffer[0] != 0xEFA282D9) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Invalid ancast header magic: %08x", dataBuffer[0]);
+        waitButtonInput();
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        FSA_CloseFile(fsaHandle, fileHandle);
+        return;
+    }    
+
+    // Check unencrypted flag
+    if (((dataBuffer[0x68] >> 2) & 1) == 0) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Ancast image is encrypted!");
+        waitButtonInput();
+        IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
+        FSA_CloseFile(fsaHandle, fileHandle);
+        return;
+    }
 
     // read and write payload to mem1
     uint32_t payloadOffset = 0x00000050;
@@ -135,7 +238,6 @@ void option_LoadBoot1Payload(void)
     }
 
     gfx_printf(16, index, 0, "Read %d bytes", bytesRead);
-    waitButtonInput();
 
     IOS_HeapFree(CROSS_PROCESS_HEAP_ID, dataBuffer);
     FSA_CloseFile(fsaHandle, fileHandle);
@@ -143,6 +245,14 @@ void option_LoadBoot1Payload(void)
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to read boot1.img: %x", res);
+        waitButtonInput();
+        return;
+    }
+
+    // Check payload size
+    if (dataBuffer[0x6B] != bytesRead) {
+        gfx_set_font_color(COLOR_ERROR);
+        gfx_printf(16, index, 0, "Failed to read ancast image (%d / %d bytes)", bytesRead, dataBuffer[0x6B]);
         waitButtonInput();
         return;
     }
@@ -155,9 +265,8 @@ void option_LoadBoot1Payload(void)
         return;
     }
 
-    // Setup branch to MEM1 payload (skip ancast + loader header) TODO we probably won't have to skip the loader header, boot1 usually doesn't come with one
-    kernWrite32(0x00000000, 0xEA000096); // b #0x260
-    //kernWrite32(0x00000000, 0xEA000012); // b #0x50
+    // Setup branch to MEM1 payload (skip ancast header)
+    kernWrite32(0x00000000, 0xEA000092); // b #0x250
     kernWrite32(0x00000004, 0xDEADC0DE);
     kernWrite32(0x00000008, 0xDEADC0DE);
 
