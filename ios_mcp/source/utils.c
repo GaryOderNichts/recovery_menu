@@ -12,7 +12,7 @@ enum {
 };
 
 static int asyncThreadHandle = -1;
-static uint8_t asyncThreadStack[0x400] __attribute__((aligned(0x20)));
+static uint8_t asyncThreadStack[0x200] __attribute__((aligned(0x20)));
 static uint32_t asyncMessageQueueBuf[0x20];
 static int asyncMessageQueue = -1;
 static int ledTimer = -1;

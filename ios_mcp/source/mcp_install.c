@@ -82,20 +82,24 @@ int MCP_InstallTitle(int handle, const char* path)
     return res;
 }
 
-int MCP_InstallTitleAsync(int handle, const char* path, int callbackQueue, void* msg)
+int MCP_InstallTitleAsync(int handle, const char* path, int callbackQueue)
 {
-    uint8_t* buf = allocIoBuf(0x27f + sizeof(IOSVec_t));
+    uint8_t* buf = allocIoBuf(0x27f + sizeof(IOSVec_t) + sizeof(MCPAsyncReply));
 
-    char* path_buf = (char*) buf + sizeof(IOSVec_t);
+    char* path_buf = (char*) buf + sizeof(IOSVec_t) + sizeof(MCPAsyncReply);
     strncpy(path_buf, path, 0x27f);
 
     IOSVec_t* vecs = (IOSVec_t*) buf;
     vecs[0].ptr = path_buf;
     vecs[0].len = 0x27f;
 
-    int res = IOS_IoctlvAsync(handle, 0x81, 1, 0, vecs, callbackQueue, msg);
+    MCPAsyncReply* reply = (MCPAsyncReply*) (buf + sizeof(IOSVec_t));
+    reply->ioBuf = buf;
 
-    freeIoBuf(buf);
+    int res = IOS_IoctlvAsync(handle, 0x81, 1, 0, vecs, callbackQueue, &reply->reply);
+    if (res < 0) {
+        freeIoBuf(buf);
+    }
 
     return res;
 }

@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 
 #define LONG_CALL __attribute__((long_call))
 
@@ -13,6 +14,63 @@ typedef struct {
     uint32_t len;
     uint32_t paddr;
 } IOSVec_t;
+
+typedef struct __attribute__((__packed__)) {
+    uint32_t command;
+    int32_t result;
+    int32_t handle;
+    uint32_t flags;
+    uint32_t cpuId;
+    uint32_t processId;
+    uint64_t titleId;
+    uint32_t groupId;
+
+    union {
+        uint32_t args[5];
+
+        struct __attribute__((__packed__)) {
+            const char* device;
+            uint32_t nameLen;
+            uint32_t mode;
+            uint64_t caps;
+        } open;
+
+        struct {
+            uint32_t unknown;
+        } close;
+
+        struct {
+            void* data;
+            uint32_t length;
+        } read;
+
+        struct {
+            const void* data;
+            uint32_t length;
+        } write;
+
+        struct {
+            uint32_t offset;
+            uint32_t origin;
+        } seek;
+
+        struct {
+            uint32_t request;
+            const void* inputData;
+            uint32_t inputLength;
+            void* outputData;
+            uint32_t outputLength;
+        } ioctl;
+
+        struct {
+            uint32_t request;
+            uint32_t numVecIn;
+            uint32_t numVecOut;
+            IOSVec_t* vecs;
+        } ioctlv;
+    };
+} IOSIpcRequest_t;
+static_assert(sizeof(IOSIpcRequest_t) == 0x38);
 
 enum {
     UC_DATA_TYPE_U8      = 1,
