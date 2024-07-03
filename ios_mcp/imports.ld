@@ -3,6 +3,7 @@ PROVIDE(printf = 0x05055438);
 PROVIDE(memcmp = 0x05054d6c);
 PROVIDE(memcpy = 0x05054e54);
 PROVIDE(memset = 0x05054ef0);
+PROVIDE(memmove = 0x05054f98);
 PROVIDE(vsnprintf = 0x05055c40);
 PROVIDE(snprintf = 0x05055c8c);
 PROVIDE(strncpy = 0x05055db4);

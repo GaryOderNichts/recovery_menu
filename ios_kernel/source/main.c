@@ -52,7 +52,9 @@ int _main(void* arg)
 
     map_info.paddr  = 0x05116000 - 0x05100000 + 0x13d80000;
     map_info.vaddr  = 0x05116000;
-    map_info.size   = 0xa000;
+    // According to <https://wiiubrew.org/wiki/Memory_map> we can map up to 0x2A000 bytes here
+    // Since we don't configure AHMN though, we only have up to 0x16000 bytes left on the current page
+    map_info.size   = 0x16000;
     map_info.domain = 1; // MCP
     map_info.type   = 3;
     map_info.cached = 0xffffffff;
