@@ -1,6 +1,6 @@
 OUTPUT_ARCH(arm)
 
-INCLUDE "imports.ld"
+INCLUDE "imports.sym"
 
 SECTIONS {
     .text 0x05116000 : {

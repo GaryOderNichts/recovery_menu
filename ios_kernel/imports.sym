@@ -1,0 +1,32 @@
+memcpy = 0x08131d04;
+memset = 0x08131da0;
+strncpy = 0x081329b8;
+vsnprintf = 0x0813293c;
+snprintf = 0x08132988;
+
+disable_interrupts = 0x0812e778;
+enable_interrupts = 0x0812e78c;
+
+invalidate_icache = 0x0812dcf0;
+invalidate_dcache = 0x08120164;
+flush_dcache = 0x08120160;
+setClientCapabilities = 0x081260a8;
+_iosMapSharedUserExecution = 0x08124f88;
+readOTP = 0x08120248;
+
+IOS_HeapAlloc = 0x081234e4;
+IOS_HeapAllocAligned = 0x08123464;
+IOS_HeapFree = 0x08123830;
+
+IOS_Open = 0x0812940c;
+IOS_Close = 0x08129368;
+IOS_Ioctl = 0x081290e0;
+IOS_Ioctlv = 0x0812903c;
+
+IOS_VirtToPhys = 0x08124484;
+
+IOS_Shutdown = 0xffffdc48;
+IOS_Reset = 0x08129760;
+
+currentThreadContext = 0x08173ba0;
+domainAccessPermissions = 0x081a4000;

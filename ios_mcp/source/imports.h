@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define LONG_CALL __attribute__((long_call))
+
 #define LOCAL_PROCESS_HEAP_ID 0xcafe
 #define CROSS_PROCESS_HEAP_ID 0xcaff
 
@@ -32,8 +34,7 @@ typedef struct __attribute__((__packed__)) {
     void* data;
 } UCSysConfig_t;
 
-// thumb functions can't just be provided to the linker
-#define setDefaultTitleId ((int (*)(uint64_t tid)) (0x0510d984 | 1))
+int LONG_CALL setDefaultTitleId(uint64_t tid);
 
 typedef enum BSPHardwareVersions {
     BSP_HARDWARE_VERSION_UNKNOWN                    = 0x00000000,

@@ -1,0 +1,74 @@
+/* printf = 0x0503dcc0; */
+printf = 0x05055438;
+memcmp = 0x05054d6c;
+memcpy = 0x05054e54;
+memset = 0x05054ef0;
+memmove = 0x05054f98;
+vsnprintf = 0x05055c40;
+snprintf = 0x05055c8c;
+strncpy = 0x05055db4;
+strnlen = 0x05055e94;
+strncmp = 0x05055e10;
+usleep = 0x050564e4;
+
+bspGetHardwareVersion = 0x0503d6e8;
+bspInit = 0x0503d35c;
+bspWrite = 0x0503d460;
+bspRead = 0x0503d550;
+
+UCWriteSysConfig = 0x05044a8c;
+UCReadSysConfig = 0x05044d5c;
+UCClose = 0x05045024;
+UCOpen = 0x05045028;
+
+IOS_CreateThread = 0x050567ec;
+IOS_JoinThread = 0x050567f4;
+IOS_CancelThread = 0x050567fc;
+IOS_StartThread = 0x05056824;
+IOS_GetThreadPriority = 0x0505683c;
+
+IOS_CreateMessageQueue = 0x0505684c;
+IOS_DestroyMessageQueue = 0x05056854;
+IOS_SendMessage = 0x0505685c;
+IOS_ReceiveMessage = 0x0505686c;
+
+IOS_CreateTimer = 0x05056884;
+IOS_RestartTimer = 0x0505688c;
+IOS_StopTimer = 0x05056894;
+IOS_DestroyTimer = 0x0505689c;
+
+IOS_CheckDebugMode = 0x050568ec;
+IOS_ReadOTP = 0x050568fc;
+
+IOS_HeapAlloc = 0x05056924;
+IOS_HeapAllocAligned = 0x0505692c;
+IOS_HeapFree = 0x05056934;
+IOS_HeapRealloc = 0x05056944;
+
+IOS_Open = 0x05056984;
+IOS_Close = 0x0505698c;
+IOS_Ioctl = 0x050569ac;
+IOS_Ioctlv = 0x050569b4;
+IOS_IoctlvAsync = 0x050569ec;
+
+IOS_InvalidateDCache = 0x05056a74;
+IOS_FlushDCache = 0x05056a7c;
+
+IOS_Shutdown = 0x05056b7c;
+IOS_Syscall0x81 = 0x05056bf4;
+
+ppcHeartBeatThreadId = 0x05070458;
+currentColdbootOS = 0x050b8174;
+currentColdbootTitle = 0x050b817c;
+
+IOSC_CreateObject = 0x050538b8;
+IOSC_Decrypt = 0x05054468;
+IOSC_DeleteObject = 0x05053820;
+IOSC_Encrypt = 0x05054808;
+IOSC_GenerateHash = 0x05053a6c;
+IOSC_GenerateRand = 0x05052228;
+IOSC_GetDeviceCertificate = 0x0505229c;
+IOSC_ImportSecretKey = 0x05053504;
+IOSC_ImportPublicKey = 0x050532c8;
+
+setDefaultTitleId = 0x0510d984|1;
