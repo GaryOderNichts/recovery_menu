@@ -7,6 +7,7 @@
 #include "fsa.h"
 
 #include <string.h>
+#include <unistd.h>
 
 typedef struct {
     uint16_t version;
@@ -18,10 +19,11 @@ static_assert(sizeof(Boot1Params) == 0x10);
 
 Boot1Params boot1Params[2] __attribute__ ((aligned (0x10)));
 
-// This code was taken from hexkyz' hexFW:
-// <https://github.com/hexkyz/hexFW/blob/19ee8f531030f0172401c31356287a667152b20c/firmware/programs/hexcore/source/main.c#L573-L624>
 static int preparePrshHax(uint32_t bootInfoOffset)
 {
+    // This code was taken from hexkyz' hexFW:
+    // <https://github.com/hexkyz/hexFW/blob/19ee8f531030f0172401c31356287a667152b20c/firmware/programs/hexcore/source/main.c#L573-L624>
+
     // RAM vars
     const uint32_t ramStartAddr = 0x10000000;
     const uint32_t ramTestBufSize = 0x400;
@@ -137,30 +139,8 @@ static int determineActiveBoot1Slot(void)
     return activeSlot;
 }
 
-void option_LoadBoot1Payload(void)
+static void loadBoot1Payload(uint32_t index, const char* filePath)
 {
-    static const Menu boot1ControlOptions[] = {
-        {"Back", {0} },
-        {"Load", {0} },
-    };
-
-    gfx_clear(COLOR_BACKGROUND);
-
-    uint32_t index = 16 + 8 + 2 + 8;
-    gfx_set_font_color(COLOR_PRIMARY);
-
-    index = gfx_printf(16, index, GfxPrintFlag_ClearBG, "This will load a payload from the SD Card named boot1.img\n"
-                                                        "and execute it from within boot1.\n\n"
-                                                        "Do you want to continue?\n\n");
-
-    int selected = drawMenu("Load BOOT1 Payload",
-        boot1ControlOptions, ARRAY_SIZE(boot1ControlOptions), 0,
-        MenuFlag_NoClearScreen, 16, index);
-    index += (CHAR_SIZE_DRC_Y + 4) * (ARRAY_SIZE(boot1ControlOptions) + 1);
-
-    if (selected == 0)
-        return;
-
     gfx_printf(16, index, 0, "Checking BOOT1 version...");
     index += CHAR_SIZE_DRC_Y + 4;
 
@@ -197,7 +177,7 @@ void option_LoadBoot1Payload(void)
     }
 
     int fileHandle;
-    int res = FSA_OpenFile(fsaHandle, "/vol/storage_recovsd/boot1.img", "r", &fileHandle);
+    int res = FSA_OpenFile(fsaHandle, filePath, "r", &fileHandle);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to open boot1.img: %x", res);
@@ -297,4 +277,92 @@ void option_LoadBoot1Payload(void)
     // we're at the point of no return
     while (1)
         ;
+}
+
+void option_LoadBoot1Payload(void)
+{
+    static const Menu boot1ControlOptions[] = {
+        {"Back", {0} },
+        {"Load", {0} },
+    };
+
+    gfx_clear(COLOR_BACKGROUND);
+
+    uint32_t index = 16 + 8 + 2 + 8;
+    gfx_set_font_color(COLOR_PRIMARY);
+
+    index = gfx_printf(16, index, GfxPrintFlag_ClearBG, "This will load a payload from the SD Card named boot1.img\n"
+                                                        "and execute it from within boot1.\n\n"
+                                                        "Do you want to continue?\n\n");
+
+    int selected = drawMenu("Load BOOT1 Payload",
+        boot1ControlOptions, ARRAY_SIZE(boot1ControlOptions), 0,
+        MenuFlag_NoClearScreen, 16, index);
+    index += (CHAR_SIZE_DRC_Y + 4) * (ARRAY_SIZE(boot1ControlOptions) + 1);
+
+    if (selected == 0)
+        return;
+
+    loadBoot1Payload(index, "/vol/storage_recovsd/boot1.img");
+}
+
+void handleBoot1Autoboot(void)
+{
+    static const char* autobootFile = "/vol/storage_recovsd/boot1now.img";
+
+    // Check if the autoboot file exists
+    FSStat stat;
+    if (FSA_GetStat(fsaHandle, autobootFile, &stat) < 0) {
+        return;
+    }
+
+    // Make sure it's not a directory
+    if (stat.flags & DIR_ENTRY_IS_DIRECTORY) {
+        return;
+    }
+
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("Autobooting...");
+
+    uint32_t index = 16 + 8 + 2 + 8;
+    gfx_set_font_color(COLOR_PRIMARY);
+
+    gfx_printf(16, index, 0, "Detected boot1now.img");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    uint64_t startTime;
+    IOS_GetAbsTime64(&startTime);
+
+    const int timeoutSecs = 5;
+    int lastDraw = -1;
+    uint8_t cur_flag = 0;
+    uint8_t flag = 0;
+    while (1) {
+        SMC_ReadSystemEventFlag(&flag);
+        if (cur_flag != flag) {
+            if ((flag & SYSTEM_EVENT_FLAG_EJECT_BUTTON) || (flag & SYSTEM_EVENT_FLAG_POWER_BUTTON)) {
+                return;
+            }
+
+            cur_flag = flag;
+        }
+
+        uint64_t curTime;
+        IOS_GetAbsTime64(&curTime);
+        uint32_t secondsPassed = (uint32_t) ((curTime - startTime) / 1000 / 1000);
+
+        // Check if we reached the timeout
+        if (secondsPassed > timeoutSecs) {
+            break;
+        }
+
+        // Draw if seconds changed
+        if (lastDraw != secondsPassed) {
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Autobooting boot1now.img in %ld seconds...\nPress any button to cancel", timeoutSecs - secondsPassed);
+            lastDraw = secondsPassed;
+        }
+    }
+    index += (CHAR_SIZE_DRC_Y + 4) * 2;
+
+    loadBoot1Payload(index, autobootFile);
 }

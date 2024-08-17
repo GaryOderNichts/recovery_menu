@@ -407,6 +407,9 @@ int menuThread(void* arg)
     // set LED to purple
     setNotificationLED(NOTIF_LED_PURPLE, 0);
 
+    // Check to see if we should autoboot
+    handleBoot1Autoboot();
+
     int selected = 0;
     while (1) {
         selected = drawMenu("Wii U Recovery Menu v" VERSION_STRING " by GaryOderNichts",

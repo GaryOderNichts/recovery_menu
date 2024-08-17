@@ -37,6 +37,8 @@ IOS_RestartTimer = 0x0505688c;
 IOS_StopTimer = 0x05056894;
 IOS_DestroyTimer = 0x0505689c;
 
+IOS_GetAbsTime64 = 0x050568d4;
+
 IOS_CheckDebugMode = 0x050568ec;
 IOS_ReadOTP = 0x050568fc;
 

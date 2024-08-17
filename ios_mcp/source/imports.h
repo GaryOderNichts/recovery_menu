@@ -106,6 +106,8 @@ int IOS_RestartTimer(int timerid, uint32_t delay, uint32_t period);
 int IOS_StopTimer(int timerid);
 int IOS_DestroyTimer(int timerid);
 
+int IOS_GetAbsTime64(uint64_t* time);
+
 int IOS_CheckDebugMode(void);
 int IOS_ReadOTP(int index, void* buffer, uint32_t size);
 
