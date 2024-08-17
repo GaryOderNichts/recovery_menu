@@ -72,3 +72,4 @@ IOSC_ImportSecretKey = 0x05053504;
 IOSC_ImportPublicKey = 0x050532c8;
 
 setDefaultTitleId = 0x0510d984|1;
+encryptPrsh = 0x0500a610|1;

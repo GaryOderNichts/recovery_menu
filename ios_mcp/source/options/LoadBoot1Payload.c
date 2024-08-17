@@ -8,65 +8,6 @@
 
 #include <string.h>
 
-static int preparePrshHax(uint32_t boootInfoPtr)
-{
-    // RAM vars
-    uint32_t ram_start_addr = 0x10000000;
-    uint32_t ram_test_buf_size = 0x400;
-
-    // PRSH vars
-    uint32_t prsh_hdr_offset = ram_start_addr + ram_test_buf_size + 0x5654;
-    uint32_t prsh_hdr_size = 0x1C;
-
-    // boot_info vars
-    uint32_t boot_info_name_addr = prsh_hdr_offset + prsh_hdr_size;
-    uint32_t boot_info_name_size = 0x100;
-    uint32_t boot_info_ptr_addr = boot_info_name_addr + boot_info_name_size;
-
-    // Calculate PRSH checksum
-    uint32_t checksum_old = 0;
-    uint32_t word_counter = 0;
-
-    while (word_counter < 0x20D) {
-        checksum_old ^= *(uint32_t *) (prsh_hdr_offset + 0x04 + word_counter * 0x04);
-        word_counter++;
-    }
-
-    // Change boot_info to point inside boot1 memory
-    *(uint32_t *) boot_info_ptr_addr = boootInfoPtr;
-
-    // Re-calculate PRSH checksum
-    uint32_t checksum = 0;
-    word_counter = 0;
-
-    while (word_counter < 0x20D) {
-        checksum ^= *(uint32_t *) (prsh_hdr_offset + 0x04 + word_counter * 0x04);
-        word_counter++;
-    }
-
-    // Update checksum
-    *(uint32_t *) prsh_hdr_offset = checksum;
-
-    // Copy PRSH IV from IOS-MCP
-    void *prsh_iv_buf = IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, 0x10);
-    if (!prsh_iv_buf) {
-        return -1;
-    }
-
-    memcpy(prsh_iv_buf, (void*) 0x050677C0, 0x10);
-
-    // Encrypt PRSH
-    int res = encryptPrsh(0x10000400, 0x7C00, prsh_iv_buf, 0x10);
-
-    // Free PRSH IV buffer
-    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, prsh_iv_buf);
-
-    // Flush cache
-    IOS_FlushDCache((void*) 0x10000400, 0x7C00);
-
-    return res;
-}
-
 typedef struct {
     uint16_t version;
     uint16_t sector;
@@ -76,6 +17,67 @@ typedef struct {
 static_assert(sizeof(Boot1Params) == 0x10);
 
 Boot1Params boot1Params[2] __attribute__ ((aligned (0x10)));
+
+// This code was taken from hexkyz' hexFW:
+// <https://github.com/hexkyz/hexFW/blob/19ee8f531030f0172401c31356287a667152b20c/firmware/programs/hexcore/source/main.c#L573-L624>
+static int preparePrshHax(uint32_t bootInfoOffset)
+{
+    // RAM vars
+    const uint32_t ramStartAddr = 0x10000000;
+    const uint32_t ramTestBufSize = 0x400;
+
+    // PRSH vars
+    const uint32_t prshHdrOffset = ramStartAddr + ramTestBufSize + 0x5654;
+    const uint32_t prshHdrSize = 0x1c;
+
+    // boot_info vars
+    const uint32_t bootInfoNameAddr = prshHdrOffset + prshHdrSize;
+    const uint32_t bootInfoNameSize = 0x100;
+    const uint32_t bootInfoPtrAddr = bootInfoNameAddr + bootInfoNameSize;
+
+    // Calculate PRSH checksum
+    uint32_t checksumOld = 0;
+    uint32_t wordCounter = 0;
+
+    while (wordCounter < 0x20d) {
+        checksumOld ^= *(uint32_t *) (prshHdrOffset + 0x04 + wordCounter * 0x04);
+        wordCounter++;
+    }
+
+    // Change boot_info to point inside boot1 memory
+    *(uint32_t *) bootInfoPtrAddr = 0x0d400200 + bootInfoOffset;
+
+    // Re-calculate PRSH checksum
+    uint32_t checksum = 0;
+    wordCounter = 0;
+
+    while (wordCounter < 0x20d) {
+        checksum ^= *(uint32_t *) (prshHdrOffset + 0x04 + wordCounter * 0x04);
+        wordCounter++;
+    }
+
+    // Update checksum
+    *(uint32_t *) prshHdrOffset = checksum;
+
+    // Copy PRSH IV from IOS-MCP
+    void *prshIvBuf = IOS_HeapAlloc(CROSS_PROCESS_HEAP_ID, 0x10);
+    if (!prshIvBuf) {
+        return -1;
+    }
+
+    memcpy(prshIvBuf, (void*) 0x050677c0, 0x10);
+
+    // Encrypt PRSH
+    int res = encryptPrsh(0x10000400, 0x7c00, prshIvBuf, 0x10);
+
+    // Free PRSH IV buffer
+    IOS_HeapFree(CROSS_PROCESS_HEAP_ID, prshIvBuf);
+
+    // Flush cache
+    IOS_FlushDCache((void*) 0x10000400, 0x7c00);
+
+    return res;
+}
 
 static int decryptBoot1Params(int index)
 {
@@ -147,9 +149,9 @@ void option_LoadBoot1Payload(void)
     uint32_t index = 16 + 8 + 2 + 8;
     gfx_set_font_color(COLOR_PRIMARY);
 
-    index = gfx_printf(16, index, GfxPrintFlag_ClearBG, "This will load a payload from within boot1\n"
-                                                        "from the SD Card named boot1.img.\n\n"
-                                                        "Do you want to continue?\n\n\n");
+    index = gfx_printf(16, index, GfxPrintFlag_ClearBG, "This will load a payload from the SD Card named boot1.img\n"
+                                                        "and execute it from within boot1.\n\n"
+                                                        "Do you want to continue?\n\n");
 
     int selected = drawMenu("Load BOOT1 Payload",
         boot1ControlOptions, ARRAY_SIZE(boot1ControlOptions), 0,
@@ -182,10 +184,10 @@ void option_LoadBoot1Payload(void)
     index += CHAR_SIZE_DRC_Y + 4;
 
     // TODO support more versions / check for dev/retail
-    uint32_t boootInfoPtr;
+    uint32_t boootInfoOffset;
     switch (activeVersion) {
     case 8377:
-        boootInfoPtr = 0x0D40AC6D;
+        boootInfoOffset = 0xaa6d;
         break;
     default:
         gfx_set_font_color(COLOR_ERROR);
@@ -277,7 +279,7 @@ void option_LoadBoot1Payload(void)
         return;
     }
 
-    res = preparePrshHax(boootInfoPtr);
+    res = preparePrshHax(boootInfoOffset);
     if (res < 0) {
         gfx_set_font_color(COLOR_ERROR);
         gfx_printf(16, index, 0, "Failed to prepare prshhax: %x", res);
@@ -293,5 +295,6 @@ void option_LoadBoot1Payload(void)
     IOS_Shutdown(1);
 
     // we're at the point of no return
-    while(1);
+    while (1)
+        ;
 }
