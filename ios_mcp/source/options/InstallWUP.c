@@ -30,12 +30,10 @@ static int callbackThread(void* arg)
 void option_InstallWUP(void)
 {
     gfx_clear(COLOR_BACKGROUND);
-    drawTopBar("Installing WUP");
+    drawTopBar("Install WUP");
     setNotificationLED(NOTIF_LED_RED_BLINKING, 0);
 
     uint32_t index = 16 + 8 + 2 + 8;
-    gfx_print(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
-    index += CHAR_SIZE_DRC_Y + 4;
 
     int mcpHandle = IOS_Open("/dev/mcp", 0);
     if (mcpHandle < 0) {
@@ -50,11 +48,35 @@ void option_InstallWUP(void)
     int res = MCP_InstallGetInfo(mcpHandle, "/vol/storage_recovsd/install", &info);
     if (res < 0) {
         IOS_Close(mcpHandle);
+        gfx_print(16, index, 0, "Make sure to place a valid signed WUP directly in 'sd:/install'");
+        index += CHAR_SIZE_DRC_Y + 4;
         printf_error(index, "Failed to get install info: %x", res);
         return;
     }
 
-    gfx_printf(16, index, 0, "Installing title: %08lx-%08lx...",
+    gfx_printf(16, index, 0, "Found title: %08lx-%08lx",
+        (uint32_t)(info.titleId >> 32), (uint32_t)(info.titleId & 0xFFFFFFFFU));
+    index += CHAR_SIZE_DRC_Y + 4;
+    gfx_print(16, index, 0, "Do you want to install this title?");
+    index += CHAR_SIZE_DRC_Y + 4;
+
+    static const Menu installWupOptions[] = {
+        {"Cancel", {0} },
+        {"Install", {0} },
+    };
+    int selected = drawMenu("Install WUP",
+        installWupOptions, ARRAY_SIZE(installWupOptions), 0,
+        MenuFlag_NoClearScreen, 16, index);
+    if (selected == 0) {
+        IOS_Close(mcpHandle);
+        return;
+    }
+
+    gfx_clear(COLOR_BACKGROUND);
+    drawTopBar("Install WUP");
+    index = 16 + 8 + 2 + 8;
+
+    gfx_printf(16, index, 0, "Starting install for title: %08lx-%08lx",
         (uint32_t)(info.titleId >> 32), (uint32_t)(info.titleId & 0xFFFFFFFFU));
     index += CHAR_SIZE_DRC_Y + 4;
 
@@ -72,52 +94,62 @@ void option_InstallWUP(void)
         return;
     }
 
+    uint32_t messages[5];
+    callbackQueue = IOS_CreateMessageQueue(messages, sizeof(messages) / sizeof(uint32_t));
+    if (callbackQueue < 0) {
+        IOS_Close(mcpHandle);
+        printf_error(index, "IOS_CreateMessageQueue: %x", res);
+        return;
+    }
+
     int callbackThreadId = IOS_CreateThread(callbackThread, NULL, callbackThreadStack + sizeof(callbackThreadStack), sizeof(callbackThreadStack), IOS_GetThreadPriority(0), IOS_THREAD_FLAGS_NONE);
     if (callbackThreadId < 0) {
+        IOS_DestroyMessageQueue(callbackQueue);
         IOS_Close(mcpHandle);
         printf_error(index, "IOS_CreateThread: %x", res);
         return;   
     }
 
     if (IOS_StartThread(callbackThreadId) < 0) {
+        IOS_DestroyMessageQueue(callbackQueue);
         IOS_Close(mcpHandle);
         printf_error(index, "IOS_StartThread failed");
         return; 
-    }
-
-    uint32_t messages[5];
-    callbackQueue = IOS_CreateMessageQueue(messages, sizeof(messages) / sizeof(uint32_t));
-    if (callbackQueue < 0) {
-        IOS_Close(mcpHandle);
-        printf_error(index, "IOS_CreateThread: %x", res);
-        return;
     }
 
     asyncResult = -1;
     asyncPending = 1;
     res = MCP_InstallTitleAsync(mcpHandle, "/vol/storage_recovsd/install", callbackQueue);
     if (res < 0) {
+        // Send a NULL message and wait for the thread to stop
+        IOS_SendMessage(callbackQueue, 0, IOS_MESSAGE_FLAGS_NONE);
+        IOS_JoinThread(callbackThreadId, NULL);
+
+        IOS_DestroyMessageQueue(callbackQueue);
         IOS_Close(mcpHandle);
-        printf_error(index, "Failed to install: %x", res);
+        printf_error(index, "Failed to start install: %x", res);
         return;
     }
 
     while (asyncPending) {
         MCPInstallProgress progress;
         res = MCP_InstallGetProgress(mcpHandle, &progress);
-        if (res < 0) {
-            // Uh oh
+        if (res >= 0) {
+            gfx_printf(16, index, GfxPrintFlag_ClearBG, "Installing... (%lu KiB / %lu KiB)", (uint32_t) (progress.sizeProgress / 1024llu), (uint32_t) (progress.sizeTotal / 1024llu));
         }
 
-        gfx_printf(16, index, GfxPrintFlag_ClearBG, "Installing (%ld)... (%lu KiB / %lu KiB)", progress.inProgress, (uint32_t) (progress.sizeProgress / 1024llu), (uint32_t) (progress.sizeTotal / 1024llu));
         usleep(50 * 1000);
     }
     index += CHAR_SIZE_DRC_Y + 4;
 
-    setNotificationLED(NOTIF_LED_PURPLE, 0);
-    gfx_set_font_color(COLOR_SUCCESS);
-    gfx_printf(16, index, 0, "Done (with result %d)!", asyncResult);
-    waitButtonInput();
+    if (asyncResult < 0) {
+        printf_error(index, "Failed to install: %x", asyncResult);
+    } else {
+        setNotificationLED(NOTIF_LED_PURPLE, 0);
+        gfx_set_font_color(COLOR_SUCCESS);
+        gfx_printf(16, index, 0, "Done!");
+        waitButtonInput();
+    }
 
     IOS_JoinThread(callbackThreadId, NULL);
     IOS_DestroyMessageQueue(callbackQueue);
