@@ -78,6 +78,10 @@ Allows submitting system information to an online database to collect various st
 This is entirely optional and personally identifying information will be kept confidential.  
 [The database can be found here!](https://wiiu.gerbilsoft.com/)
 
+### Load BOOT1 payload
+Loads a payload from the root of the SD Card named `boot1.img` and executes it from within boot1.
+If the file is named `boot1now.img` it gets loaded automatically when starting the recovery_menu after a 5 second timeout.
+
 ## Building
 ```bash
 # build the docker container

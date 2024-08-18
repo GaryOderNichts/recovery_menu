@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define VERSION_STRING "0.5"
+#define VERSION_STRING "0.6"
 
 // FSA handle
 // Initialized by menuThread().
