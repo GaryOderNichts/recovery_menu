@@ -54,10 +54,8 @@ void option_InstallWUP(void)
         return;
     }
 
-    gfx_printf(16, index, 0, "Found title: %08lx-%08lx",
+    index = gfx_printf(16, index, 0, "Found title: %08lx-%08lx\nDo you want to install this title?",
         (uint32_t)(info.titleId >> 32), (uint32_t)(info.titleId & 0xFFFFFFFFU));
-    index += CHAR_SIZE_DRC_Y + 4;
-    gfx_print(16, index, 0, "Do you want to install this title?");
     index += CHAR_SIZE_DRC_Y + 4;
 
     static const Menu installWupOptions[] = {
