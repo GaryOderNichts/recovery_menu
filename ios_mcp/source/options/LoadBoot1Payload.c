@@ -293,12 +293,13 @@ void option_LoadBoot1Payload(void)
 
     index = gfx_printf(16, index, GfxPrintFlag_ClearBG, "This will load a payload from the SD Card named boot1.img\n"
                                                         "and execute it from within boot1.\n\n"
-                                                        "Do you want to continue?\n\n");
+                                                        "Do you want to continue?");
+    index += CHAR_SIZE_DRC_Y + 4;
 
     int selected = drawMenu("Load BOOT1 Payload",
         boot1ControlOptions, ARRAY_SIZE(boot1ControlOptions), 0,
         MenuFlag_NoClearScreen, 16, index);
-    index += (CHAR_SIZE_DRC_Y + 4) * (ARRAY_SIZE(boot1ControlOptions) + 1);
+    index += (CHAR_SIZE_DRC_Y + 4) * ARRAY_SIZE(boot1ControlOptions);
 
     if (selected == 0)
         return;
