@@ -35,6 +35,7 @@ typedef struct __attribute__((__packed__)) {
 } UCSysConfig_t;
 
 int LONG_CALL setDefaultTitleId(uint64_t tid);
+int LONG_CALL encryptPrsh(uint32_t addr, uint32_t size, void* ivBuf, uint32_t ivSize);
 
 typedef enum BSPHardwareVersions {
     BSP_HARDWARE_VERSION_UNKNOWN                    = 0x00000000,
@@ -105,6 +106,8 @@ int IOS_RestartTimer(int timerid, uint32_t delay, uint32_t period);
 int IOS_StopTimer(int timerid);
 int IOS_DestroyTimer(int timerid);
 
+int IOS_GetAbsTime64(uint64_t* time);
+
 int IOS_CheckDebugMode(void);
 int IOS_ReadOTP(int index, void* buffer, uint32_t size);
 
@@ -147,8 +150,8 @@ int IOSC_DeleteObject(int keyHandle);
 int IOSC_GenerateRand(uint8_t* randBytes, uint32_t numBytes);
 int IOSC_ImportSecretKey(IOSCSecretKeyHandle importedHandle, IOSCSecretKeyHandle verifyHandle, IOSCSecretKeyHandle decryptHandle, IOSCSecretKeySecurity flag, uint8_t* signbuffer, uint32_t signbufferSize, uint8_t* ivData, uint32_t ivSize, uint8_t* keybuffer, uint32_t keybufferSize);
 int IOSC_ImportPublicKey(uint8_t* publicKeyData, uint32_t dataSize, uint8_t* exponent, uint32_t exponentSize, IOSCPublicKeyHandle publicKeyHandle);
-int IOSC_Decrypt(IOSCSecretKeyHandle decryptHandle, uint8_t* ivData, uint32_t ivSize, uint8_t* inputData, uint32_t inputSize, uint8_t* outputData, uint32_t outputSize);
-int IOSC_Encrypt(IOSCSecretKeyHandle encryptHandle, uint8_t* ivData, uint32_t ivSize, uint8_t* inputData, uint32_t inputSize, uint8_t* outputData, uint32_t outputSize);
+int IOSC_Decrypt(IOSCSecretKeyHandle decryptHandle, void* ivData, uint32_t ivSize, void* inputData, uint32_t inputSize, void* outputData, uint32_t outputSize);
+int IOSC_Encrypt(IOSCSecretKeyHandle encryptHandle, void* ivData, uint32_t ivSize, void* inputData, uint32_t inputSize, void* outputData, uint32_t outputSize);
 
 #define WUP_CERT_SIGTYPE_ECC_SHA1   0x00010002  /* ECC with SHA-1 */
 #define WUP_CERT_SIGTYPE_ECC_SHA256 0x00010005  /* ECC with SHA-256 */

@@ -49,6 +49,7 @@ static const Menu mainMenuOptions[] = {
     {"Debug System Region",         {.callback = option_DebugSystemRegion}},
     {"System Information",          {.callback = option_SystemInformation}},
     {"Submit System Data",          {.callback = option_SubmitSystemData}},
+    {"Load BOOT1 payload",          {.callback = option_LoadBoot1Payload}},
     {"Shutdown",                    {.callback = option_Shutdown}},
 };
 
@@ -405,6 +406,9 @@ int menuThread(void* arg)
 
     // set LED to purple
     setNotificationLED(NOTIF_LED_PURPLE, 0);
+
+    // Check to see if we should autoboot
+    handleBoot1Autoboot();
 
     int selected = 0;
     while (1) {

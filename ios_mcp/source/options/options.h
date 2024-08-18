@@ -5,6 +5,7 @@
 #include "DumpSyslogs.h"
 #include "EditParental.h"
 #include "InstallWUP.h"
+#include "LoadBoot1Payload.h"
 #include "LoadNetConf.h"
 #include "PairDRC.h"
 #include "SetColdbootTitle.h"
