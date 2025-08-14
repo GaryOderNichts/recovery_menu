@@ -132,12 +132,13 @@ void gfx_draw_rect_filled(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32
 #endif /* DC_INIT || MCP_RECOVERY */
 
 #ifdef MCP_RECOVERY
-    // mcp_recovery: Using DRC scale because mcp_recovery usually runs in 480p.
-    uint32_t* p = framebuffer + (y * width) + x;
-    uint32_t stride_diff = width - w;
+    // mcp_recovery: Using TV scale because mcp_recovery seems to have a
+    // 1280x720 framebuffer, even though the output mode is usually 480p.
+    uint32_t* p = framebuffer + ((uint32_t)(y * 1.5f) * width) + (uint32_t)(x * 1.5f);
+    uint32_t stride_diff = width - (w * 1.5f);
 
-    for (uint32_t hcnt = h; hcnt > 0; hcnt--) {
-        for (uint32_t wcnt = w; wcnt > 0; wcnt--) {
+    for (uint32_t hcnt = (h * 1.5f); hcnt > 0; hcnt--) {
+        for (uint32_t wcnt = (w * 1.5f); wcnt > 0; wcnt--) {
             *p++ = col;
         }
         p += stride_diff;
@@ -200,15 +201,16 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
     c -= 32;
 
 #ifdef MCP_RECOVERY
-    // mcp_recovery: Terminus 8x16 bold
-    // Using the smaller font because mcp_recovery usually runs in 480p.
-    const uint8_t* charMCP = font->ter_u16b[(unsigned char)c];
-    uint32_t *p = framebuffer + (y * width) + x;
-    unsigned int stride_diff = width - CHAR_SIZE_DRC_X;
+    // mcp_recovery: Terminus 12x24 bold
+    // Using TV scale because mcp_recovery seems to have a 1280x720
+    // framebuffer, even though the output mode is usually 480p.
+    const uint16_t* charMCP = font->ter_u24b[(unsigned char)c];
+    uint32_t *p = framebuffer + ((uint32_t)(y * 1.5f) * width) + (uint32_t)(x * 1.5f);
+    unsigned int stride_diff = width - CHAR_SIZE_TV_X;
 
-    for (uint32_t hcnt = CHAR_SIZE_DRC_Y; hcnt > 0; hcnt--) {
-        uint8_t v = *charMCP++;
-        for (uint32_t wcnt = CHAR_SIZE_DRC_X; wcnt > 0; wcnt--, v >>= 1) {
+    for (uint32_t hcnt = CHAR_SIZE_TV_Y; hcnt > 0; hcnt--) {
+        uint16_t v = *charMCP++;
+        for (uint32_t wcnt = CHAR_SIZE_TV_X; wcnt > 0; wcnt--, v >>= 1) {
             if (v & 1) {
                 *p = font_color;
             }
