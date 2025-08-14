@@ -126,10 +126,10 @@ void gfx_draw_pixel(uint32_t x, uint32_t y, uint32_t col)
 
 void gfx_draw_rect_filled(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t col)
 {
-#ifdef DC_INIT
+#if defined(DC_INIT) || defined(MCP_RECOVERY)
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
+#endif /* DC_INIT || MCP_RECOVERY */
 
 #ifdef MCP_RECOVERY
     // mcp_recovery: Using DRC scale because mcp_recovery usually runs in 480p.
@@ -177,10 +177,10 @@ void gfx_draw_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t bord
 
 void gfx_set_font_color(uint32_t col)
 {
-#ifdef DC_INIT
+#if defined(DC_INIT) || defined(MCP_RECOVERY)
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
+#endif /* DC_INIT || MCP_RECOVERY */
 
     font_color = col;
 }
