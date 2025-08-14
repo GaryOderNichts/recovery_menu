@@ -368,7 +368,7 @@ int menuThread(void* arg)
     // Initialize utils
     initializeUtils();
 
-#ifdef DC_INIT
+#if defined(DC_INIT)
     // (re-)init the graphics subsystem
     GFX_SubsystemInit(0);
 
@@ -383,6 +383,17 @@ int menuThread(void* arg)
        Writing to the hardcoded addresses in gfx.c works for HDMI though */
     DC_Config dc_config;
     DISPLAY_ReadDCConfig(&dc_config);
+#elif defined(MCP_RECOVERY)
+    // init display output (already initialized in recovery mode)
+    DISPLAY_DCInit(DC_CONFIGURATION_1);
+
+    // MCP is doing something different in recovery mode to make display configuration work properly
+    // this doesn't work usually
+    DC_Config dc_config;
+    DISPLAY_ReadDCConfig(&dc_config);
+
+    printf("DC Config: %p %ux%u\n", dc_config.framebuffer, dc_config.width, dc_config.height);
+    gfx_init(dc_config.framebuffer, dc_config.width, dc_config.height);
 #endif
 
     // initialize the font
