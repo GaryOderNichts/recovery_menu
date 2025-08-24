@@ -55,6 +55,12 @@ LIBS	:= -lgcc
 ifeq ($(DC_INIT), 1)
 	CFLAGS += -DDC_INIT
 endif
+ifeq ($(MCP_RECOVERY), 1)
+	CFLAGS += -DMCP_RECOVERY
+	SOURCES += source/mcp_recovery
+else
+	SOURCES += source/mcp_normal
+endif
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level

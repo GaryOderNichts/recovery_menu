@@ -63,8 +63,13 @@ int _main(void* arg)
     // redirect __sys_write0 to lolserial
     *(volatile uint32_t*) 0x0812dd68 = ARM_B(0x0812dd68, (uint32_t) &svcAB_handler);
 
+#ifdef MCP_RECOVERY
+    // hook memcpy called on every /dev/mcp_recovery ioctl to start menu thread
+    *(volatile uint32_t*) (0x0510f4a0 - 0x05100000 + 0x13d80000) = THUMB_BL(0x0510f4a0, _MCP_recovery_ioctl_memcpy_hook);
+#else /* !MCP_RECOVERY */
     // add mcp ioctl hook to start mcp thread
     *(volatile uint32_t*) (0x05025242 - 0x05000000 + 0x081c0000) = THUMB_BL(0x05025242, _MCP_ioctl100_patch);
+#endif /* MCP_RECOVERY */
 
     // replace custom kernel syscall
     *(volatile uint32_t*) 0x0812cd2c = ARM_B(0x0812cd2c, kernel_syscall_0x81);
@@ -94,10 +99,19 @@ int _main(void* arg)
     setClientCapabilities(currentThreadContext->pid, 0xd, 0xffffffffffffffffllu);
 
     // start mcp thread
+#ifdef MCP_RECOVERY
+    int mcpHandle = IOS_Open("/dev/mcp_recovery", 0);
+#else /* !MCP_RECOVERY */
     int mcpHandle = IOS_Open("/dev/mcp", 0);
+#endif /* MCP_RECOVERY */
     if (mcpHandle > 0) {
         lolserial_printf("Starting MCP thread...\n");
+#ifdef MCP_RECOVERY
+        // send any ioctl to /dev/mcp_recovery to trigger hook
+        IOS_Ioctl(mcpHandle, 0, NULL, 0, NULL, 0);
+#else /* !MCP_RECOVERY */
         IOS_Ioctl(mcpHandle, 100, NULL, 0, NULL, 0);
+#endif /* MCP_RECOVERY */
 
         IOS_Close(mcpHandle);
     } else {

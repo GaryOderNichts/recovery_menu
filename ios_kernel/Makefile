@@ -50,6 +50,10 @@ LDFLAGS := -nostartfiles -nodefaultlibs -mbig-endian -flto \
 
 LIBS	:= -lgcc
 
+ifeq ($(MCP_RECOVERY), 1)
+	CFLAGS += -DMCP_RECOVERY
+endif
+
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level
 # containing include and lib

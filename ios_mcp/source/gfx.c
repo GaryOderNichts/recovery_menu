@@ -4,6 +4,14 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#ifdef MCP_RECOVERY
+// mcp_recovery does something different with framebuffer handling.
+// Only TV is usable; DRC isn't initialized.
+static uint32_t* framebuffer;
+static uint32_t width;
+static uint32_t height;
+#else /* !MCP_RECOVERY */
+
 static uint32_t* const TV_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x3500000);
 #define TV_HEIGHT 720
 #define TV_STRIDE 1280
@@ -11,6 +19,8 @@ static uint32_t* const TV_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x3500000);
 static uint32_t* const DRC_FRAMEBUFFER = (uint32_t*)(0x14000000 + 0x38c0000);
 #define DRC_HEIGHT 480
 #define DRC_STRIDE 896
+
+#endif /* MCP_RECOVERY */
 
 #define CHAR_SIZE_TV_X 12
 #define CHAR_SIZE_TV_Y 24
@@ -50,13 +60,27 @@ int gfx_init_font(void)
     return 0;
 }
 
+#ifdef MCP_RECOVERY
+void gfx_init(void* fb, uint32_t w, uint32_t h)
+{
+    framebuffer = (uint32_t*) fb;
+    width = w;
+    height = h;
+}
+#endif /* MCP_RECOVERY */
+
 void gfx_clear(uint32_t col)
 {
-#ifdef DC_INIT
+#if defined(DC_INIT) || defined(MCP_RECOVERY)
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
+#endif /* DC_INIT || MCP_RECOVERY */
 
+#ifdef MCP_RECOVERY
+    for (uint32_t i = 0; i < width * height; i++) {
+        framebuffer[i] = col;
+    }
+#else /* !MCP_RECOVERY */
     for (uint32_t i = 0; i < TV_STRIDE * TV_HEIGHT; i++) {
         TV_FRAMEBUFFER[i] = col;
     }
@@ -64,39 +88,62 @@ void gfx_clear(uint32_t col)
     for (uint32_t i = 0; i < DRC_STRIDE * DRC_HEIGHT; i++) {
         DRC_FRAMEBUFFER[i] = col;
     }
+#endif /* MCP_RECOVERY */
 }
 
 void gfx_draw_pixel(uint32_t x, uint32_t y, uint32_t col)
 {
-#ifdef DC_INIT
+#if defined(DC_INIT) || defined(MCP_RECOVERY)
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
+#endif /* DC_INIT || MCP_RECOVERY */
 
+#ifndef MCP_RECOVERY
     // put pixel in the drc buffer
     uint32_t i = x + y * DRC_STRIDE;
     if (i < DRC_STRIDE * DRC_HEIGHT) {
         DRC_FRAMEBUFFER[i] = col;
     }
+#endif /* !MCP_RECOVERY */
 
     // scale and put pixel in the tv buffer
     for (uint32_t yy = (y * 1.5f); yy < ((y * 1.5f) + 1); yy++) {
         for (uint32_t xx = (x * 1.5f); xx < ((x * 1.5f) + 1); xx++) {
+#ifdef MCP_RECOVERY
+            uint32_t i = xx + yy * width;
+            if (i < width * height) {
+                framebuffer[i] = col;
+            }
+#else /* !MCP_RECOVERY */
             uint32_t i = xx + yy * TV_STRIDE;
             if (i < TV_STRIDE * TV_HEIGHT) {
                 TV_FRAMEBUFFER[i] = col;
             }
+#endif /* MCP_RECOVERY */
         }
     }
 }
 
 void gfx_draw_rect_filled(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t col)
 {
-#ifdef DC_INIT
+#if defined(DC_INIT) || defined(MCP_RECOVERY)
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
+#endif /* DC_INIT || MCP_RECOVERY */
 
+#ifdef MCP_RECOVERY
+    // mcp_recovery: Using TV scale because mcp_recovery seems to have a
+    // 1280x720 framebuffer, even though the output mode is usually 480p.
+    uint32_t* p = framebuffer + ((uint32_t)(y * 1.5f) * width) + (uint32_t)(x * 1.5f);
+    uint32_t stride_diff = width - (w * 1.5f);
+
+    for (uint32_t hcnt = (h * 1.5f); hcnt > 0; hcnt--) {
+        for (uint32_t wcnt = (w * 1.5f); wcnt > 0; wcnt--) {
+            *p++ = col;
+        }
+        p += stride_diff;
+    }
+#else /* !MCP_RECOVERY */
     // DRC fill: normal scale
     uint32_t* p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
     uint32_t stride_diff = DRC_STRIDE - w;
@@ -118,6 +165,7 @@ void gfx_draw_rect_filled(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32
         }
         p += stride_diff;
     }
+#endif /* MCP_RECOVERY */
 }
 
 void gfx_draw_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t borderSize, uint32_t col)
@@ -130,10 +178,10 @@ void gfx_draw_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t bord
 
 void gfx_set_font_color(uint32_t col)
 {
-#ifdef DC_INIT
+#if defined(DC_INIT) || defined(MCP_RECOVERY)
     // both DC configurations use XRGB instead of RGBX
     col >>= 8;
-#endif
+#endif /* DC_INIT || MCP_RECOVERY */
 
     font_color = col;
 }
@@ -152,6 +200,25 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
         return;
     c -= 32;
 
+#ifdef MCP_RECOVERY
+    // mcp_recovery: Terminus 12x24 bold
+    // Using TV scale because mcp_recovery seems to have a 1280x720
+    // framebuffer, even though the output mode is usually 480p.
+    const uint16_t* charMCP = font->ter_u24b[(unsigned char)c];
+    uint32_t *p = framebuffer + ((uint32_t)(y * 1.5f) * width) + (uint32_t)(x * 1.5f);
+    unsigned int stride_diff = width - CHAR_SIZE_TV_X;
+
+    for (uint32_t hcnt = CHAR_SIZE_TV_Y; hcnt > 0; hcnt--) {
+        uint16_t v = *charMCP++;
+        for (uint32_t wcnt = CHAR_SIZE_TV_X; wcnt > 0; wcnt--, v >>= 1) {
+            if (v & 1) {
+                *p = font_color;
+            }
+            p++;
+        }
+        p += stride_diff;
+    }
+#else /* !MCP_RECOVERY */
     // DRC blit: Terminus 8x16 bold
     const uint8_t* charDRC = font->ter_u16b[(unsigned char)c];
     uint32_t *p = DRC_FRAMEBUFFER + (y * DRC_STRIDE) + x;
@@ -183,6 +250,7 @@ static void gfx_draw_char(uint32_t x, uint32_t y, char c)
         }
         p += stride_diff;
     }
+#endif /* !MCP_RECOVERY */
 }
 
 /**
